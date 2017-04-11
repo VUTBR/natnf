@@ -25,12 +25,30 @@ int main(void)
 {
 	int ret;
 	struct nfct_handle *h;
+	struct nf_conntrack *ct;
+    unsigned short value;
 
 	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW);
 	if (!h) {
 		perror("nfct_open");
 		return 0;
 	}
+
+    ct = nfct_new();
+	if (!ct) {
+		perror("nfct_new");
+		return 0;
+	}
+
+    /* TODO What should be the value of value??? */
+    value = 0;
+    /* TODO Choose between:
+     * ATTR_SNAT_PORT,
+     * ATTR_DNAT_PORT,
+     * ATTR_SNAT_IPV4,
+     * ATTR_DNAT_IPV4,
+     * */
+    nfct_set_attr_u16(ct, ATTR_SNAT_PORT, value);
 
 	nfct_callback_register(h, NFCT_T_NEW, event_cb, NULL);
 
