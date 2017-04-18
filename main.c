@@ -5,17 +5,36 @@
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+#define EVENTS_MAX 10
+
+#ifdef EVENTS_UNLIMITED
+# define EVENTS_DONE(cnt) (cnt == EVENTS_MAX)
+#else
+# define EVENTS_DONE(cnt) (0)
+#endif
+
 static int event_cb(enum nf_conntrack_msg_type type,
 		    struct nf_conntrack *ct,
 		    void *data)
 {
-	static int n = 0;
+	static int counter = 0;
+    int is_nat;
 	char buf[1024];
 
-	nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_T_UNKNOWN, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
+    /* We're only interested in source NAT. */
+    is_nat = nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
+             nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT);
+
+    if (!is_nat)
+    {
+        return NFCT_CB_CONTINUE;
+    }
+
+	nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_O_DEFAULT, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
 	printf("%s\n", buf);
 
-	if (++n == 10)
+    counter++;
+	if (EVENTS_DONE(counter))
 		return NFCT_CB_STOP;
 
 	return NFCT_CB_CONTINUE;
@@ -40,19 +59,9 @@ int main(void)
 		return 0;
 	}
 
-    /* TODO What should be the value of value??? */
-    value = 0;
-    /* TODO Choose between:
-     * ATTR_SNAT_PORT,
-     * ATTR_DNAT_PORT,
-     * ATTR_SNAT_IPV4,
-     * ATTR_DNAT_IPV4,
-     * */
-    nfct_set_attr_u16(ct, ATTR_SNAT_PORT, value);
+	nfct_callback_register(h, NFCT_T_NEW, event_cb, ct);
 
-	nfct_callback_register(h, NFCT_T_NEW, event_cb, NULL);
-
-	printf("TEST: waiting for 10 events...\n");
+	printf("TEST: waiting for events...\n");
 
 	ret = nfct_catch(h);
 
