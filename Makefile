@@ -1,5 +1,21 @@
-all:
-	gcc main.c -L/usr/lib/x86_64-linux-gnu/ -lnetfilter_conntrack -o netnf
+PROG_NAME := natnf
+SOURCES := $(wildcard *.c)
+HEADERS := $(wildcard *.h)
+OBJS := ${SOURCES:.c=.o}
+CC := gcc
+CFLAGS += -Wall -std=c99 -w -Wextra -pedantic
+NOERR := 2>/dev/null
+
+.PHONY: all clean
+
+all: $(PROG_NAME)
+
+$(PROG_NAME): $(OBJS)
+	$(LINK.c) $(OBJS) -o $(PROG_NAME) -L/usr/lib/x86_64-linux-gnu/ -lnetfilter_conntrack
+
+run: $(PROG_NAME)
+	sudo ./$(PROG_NAME)
 
 clean:
-	rm -f *.o netnf
+	@- $(RM) $(PROG_NAME)
+	@- $(RM) $(OBJS)
