@@ -72,8 +72,8 @@ static int event_cb(enum nf_conntrack_msg_type type,
     nfct_copy(ct_orig, ct, NFCT_CP_ORIG);
     nfct_copy(ct_repl, ct, NFCT_CP_REPL);
 
-	nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_O_DEFAULT, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
-	printf("%s\n", buf);
+	//nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_O_DEFAULT, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
+	//printf("%s\n", buf);
 
 	parse_nat_header(nat, ct_orig, type, LOCAL_OUT);
 	print_nat_header(nat, LOCAL_OUT);
@@ -201,6 +201,8 @@ int main(void)
 	struct nf_conntrack *ct;
     unsigned short value;
 
+    export_init();
+
 	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW);
 	if (!h) {
 		perror("nfct_open");
@@ -226,6 +228,8 @@ int main(void)
 		printf("(OK)\n");
 
 	nfct_close(h);
+
+    export_finish();
 
 	ret == -1 ? exit(EXIT_FAILURE) : exit(EXIT_SUCCESS);
 }
