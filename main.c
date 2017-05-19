@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include <pthread.h>
 
 #include "export.h"
 
@@ -43,6 +44,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 
 	parse_nat_header(natr, ct);
 	print_nat_header(natr);
+    export_append(natr);
 
     counter++;
 	if (EVENTS_DONE(counter))
@@ -92,14 +94,15 @@ void print_nat_header(struct nat_record *natr)
     printf("\n");
 }
 
-int main(void)
+/** Callback for the thread which catches NAT events and creates
+ * data for the exporter.
+ * This is a producer.
+ */
+void thread_catcher(void *arg)
 {
-	int ret;
 	struct nfct_handle *h;
 	struct nf_conntrack *ct;
-    unsigned short value;
-
-    export_init();
+    int ret;
 
 	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW);
 	if (!h) {
@@ -117,6 +120,7 @@ int main(void)
 
 	printf("TEST: waiting for events...\n");
 
+    /* The following is a blocking call. */
 	ret = nfct_catch(h);
 
 	printf("TEST: conntrack events ");
@@ -126,6 +130,68 @@ int main(void)
 		printf("(OK)\n");
 
 	nfct_close(h);
+}
+
+/** Callback for the exporting thread.
+ * It consumes data from the caught NAT events and sends them to the
+ * collector.
+ */
+void thread_exporter(void *arg)
+{
+
+}
+
+/** Callback for a thread that shall send template packets to the
+ * collector periodically.
+ */
+void thread_template(void *arg)
+{
+
+}
+
+int main(void)
+{
+	int ret;
+    unsigned short value;
+    pthread_t pt[3];
+    pthread_attr_t attr;
+    void *statp;
+
+    export_init();
+
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); 
+
+    /* Catcher thread */
+    ret = pthread_create(&pt[0], &attr, thread_catcher, NULL);
+    if (ret != 0)
+    {
+        error("Thread not created");
+    }
+
+    /* Exporter thread */
+    ret = pthread_create(&pt[1], &attr, thread_exporter, NULL);
+    if (ret != 0)
+    {
+        error("Thread not created");
+    }
+
+    /* Template sender thread */
+    ret = pthread_create(&pt[2], &attr, thread_template, NULL);
+    if (ret != 0)
+    {
+        error("Thread not created");
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+        ret = pthread_join(pt[i], &statp); 
+        if (ret == -1) {
+            perror("Pthread join fail");
+            exit(1);
+        }
+    }
 
     export_finish();
 
