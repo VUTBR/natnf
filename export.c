@@ -5,6 +5,13 @@
 #include "error.h"
 #include "export.h"
 
+int socket_out;
+struct sockaddr_in sin;
+
+struct nat_record *buf_records[RECORDS_MAX] = { NULL };
+int buf_begin = 0;
+int buf_end = 0;
+
 void export_init(void)
 {
     int ret;
@@ -37,4 +44,15 @@ void export_append(struct nat_record *natr)
     /* TODO exclusive access. */
     buf_records[buf_end] = natr;
     buf_end++;
+}
+
+struct nat_record *nat_record_new(void)
+{
+    struct nat_record *new;
+    new = malloc(sizeof(struct nat_record));
+    if (new == NULL)
+    {
+        perror("malloc returned NULL");
+    }
+    return new;
 }

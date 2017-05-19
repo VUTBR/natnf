@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
+#include <arpa/inet.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+
+#include "export.h"
 
 #define EVENTS_UNLIMITED
 #define EVENTS_MAX 10
@@ -14,46 +16,13 @@
 # define EVENTS_DONE(cnt) (0)
 #endif
 
-const char S_SRC_IP[]	= "src=";
-const char S_DST_IP[]	= "dst=";
-const char S_SRC_PORT[]	= "sport=";
-const char S_DST_PORT[]	= "dport=";
-
-enum direction {
-	LOCAL_OUT,
-	LOCAL_IN
-};
-
-struct nat_ip_port {
-	char src_ip[16];
-	char src_port[6];
-    char dst_ip[16];
-    char dst_port[6];
-};
-
 static int event_cb(enum nf_conntrack_msg_type type,
-					struct nf_conntrack *ct,
-					void *data)
+                    struct nf_conntrack *ct,
+                    void *data)
 {
 	static int counter = 0;
 	int is_nat;
-	char buf[1024];
-	struct nf_conntrack *ct_orig, *ct_repl;
-	struct nat_ip_port *nat;
-
-	ct_orig = nfct_new();
-	if (!ct_orig) {
-		perror("nfct_new");
-		return 0;
-	}
-
-	ct_repl = nfct_new();
-	if (!ct_repl) {
-		perror("nfct_new");
-		return 0;
-	}
-
-	nat = (struct nat_ip_port*)malloc(sizeof(struct nat_ip_port));
+    struct nat_record *natr;
 
 	if ( NFCT_T_UPDATE == type )
 	{
@@ -69,17 +38,11 @@ static int event_cb(enum nf_conntrack_msg_type type,
         return NFCT_CB_CONTINUE;
     }
 
-    nfct_copy(ct_orig, ct, NFCT_CP_ORIG);
-    nfct_copy(ct_repl, ct, NFCT_CP_REPL);
 
-	//nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_O_DEFAULT, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
-	//printf("%s\n", buf);
+    natr = nat_record_new();
 
-	parse_nat_header(nat, ct_orig, type, LOCAL_OUT);
-	print_nat_header(nat, LOCAL_OUT);
-
-	parse_nat_header(nat, ct_repl, type, LOCAL_IN);
-	print_nat_header(nat, LOCAL_IN);
+	parse_nat_header(natr, ct);
+	print_nat_header(natr);
 
     counter++;
 	if (EVENTS_DONE(counter))
@@ -88,110 +51,45 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
-void parse_nat_header (	struct nat_ip_port *nat, 
-						struct nf_conntrack *ct,
-						enum nf_conntrack_msg_type type,
-						enum direction dir)
+void parse_nat_header(struct nat_record *natr,
+                      struct nf_conntrack *ct)
 {
-	char buf[1024];
+    struct in_addr ip;
 
-	char *start, *end;
+    if (natr == NULL || ct == NULL)
+    {
+        return;
+    }
 
-	nfct_snprintf(buf, sizeof(buf), ct, type, NFCT_O_DEFAULT, NFCT_OF_TIME | NFCT_OF_TIMESTAMP);
+    natr->pre_nat_src_ip.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
+    natr->pre_nat_dst_ip.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
+    /* The following two are correctly reversed (dst and src)! */
+    natr->post_nat_src_ip.s_addr = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST);
+    natr->post_nat_dst_ip.s_addr = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
+    natr->pre_nat_src_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC);
+    natr->pre_nat_dst_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST);
+    /* The following two are correctly reversed (dst and src)! */
+    natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
+    natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
 
-	//ensure NULL string if parse fail
-	nat->src_ip[0]	= 0;
-	nat->src_port[0]= 0;
-	nat->dst_ip[0]	= 0;
-	nat->dst_port[0]= 0;
-
-	start = strstr(buf, S_SRC_IP);
-	if ( NULL != start )
-	{
-		start += sizeof S_SRC_IP - 1;	// length of "src="
-		end = strchr(start,' ');
-
-		if ( LOCAL_OUT == dir )
-		{
-			strncpy(nat->src_ip, start, end-start);
-			nat->src_ip[end-start+1] = 0;
-		}
-		else
-		{
-			//printf("\nDST IP: %.*s\n", end-start, start);
-			strncpy(nat->dst_ip, start, end-start);
-			nat->dst_ip[end-start+1] = 0;
-		}
-	}
-
-	start = strstr(buf, S_SRC_PORT);
-	if ( NULL != start )
-	{
-		start += sizeof S_SRC_PORT - 1;	// length of "sport="
-		end = strchr(start,' ');
-
-		if ( LOCAL_OUT == dir )
-		{
-			strncpy(nat->src_port, start, end-start);
-			nat->src_port[end-start+1] = 0;
-		}
-		else
-		{
-			strncpy(nat->dst_port, start, end-start);
-			nat->dst_port[end-start+1] = 0;
-		}
-	}
-
-	start = strstr(buf, S_DST_IP);
-	if ( NULL != start )
-	{
-		start += sizeof S_DST_IP - 1;	// length of "dst="
-		end = strchr(start,' ');
-
-		if ( LOCAL_OUT == dir )
-		{
-			strncpy(nat->dst_ip, start, end-start);
-			nat->dst_ip[end-start+1] = 0;
-		}
-		else
-		{
-			strncpy(nat->src_ip, start, end-start);
-			nat->src_ip[end-start+1] = 0;
-		}
-	}
-
-	start = strstr(buf, S_DST_PORT);
-	if ( NULL != start )
-	{
-		start += sizeof S_DST_PORT - 1;	// length of "dport="
-		end = strchr(start,' ');
-
-		if ( LOCAL_OUT == dir )
-		{
-			strncpy(nat->dst_port, start, 5);	//till end of string
-			nat->dst_port[6] = 0;
-		}
-		else
-		{
-			strncpy(nat->src_port, start, 5);	//till end of string
-			nat->src_port[6] = 0;
-		}
-	}
-
-	return;
+    return;
 }
 
-void print_nat_header (	struct nat_ip_port *nat,
-						enum direction dir)
+void print_nat_header(struct nat_record *natr)
 {
-	if ( LOCAL_OUT == dir )
-	{
-		printf("%s:%s %s:%s\t", nat->src_ip, nat->src_port, nat->dst_ip, nat->dst_port);
-	}
-	else
-	{
-		printf("-->\t%s:%s %s:%s\n", nat->src_ip, nat->src_port, nat->dst_ip, nat->dst_port);
-	}
+    printf("%s", inet_ntoa(natr->pre_nat_src_ip));
+    printf(":%d", natr->pre_nat_src_port);
+    printf(" %s", inet_ntoa(natr->pre_nat_dst_ip));
+    printf(":%d", natr->pre_nat_dst_port);
+
+    printf(" <--> ");
+
+    printf("%s", inet_ntoa(natr->post_nat_src_ip));
+    printf(":%d", natr->post_nat_src_port);
+    printf(" %s", inet_ntoa(natr->post_nat_dst_ip));
+    printf(":%d", natr->post_nat_dst_port);
+
+    printf("\n");
 }
 
 int main(void)

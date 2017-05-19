@@ -1,5 +1,9 @@
+#ifndef EXPORT_H
+#define EXPORT_H
+
 #include <netinet/ip.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 
 /* TODO Replace the following with variable user input. */
 #define COLLECTOR_IP_STR "127.0.0.1"
@@ -8,22 +12,33 @@
 #define RECORDS_MAX 65536
 
 /* Outgoing connection identification */
-int socket_out;
-struct sockaddr_in sin;
+extern int socket_out;
+extern struct sockaddr_in sin;
 
 /* TODO Add fields that identify a NAT translation. */
 struct nat_record
 {
-    int todo;
+    struct in_addr pre_nat_src_ip;
+    struct in_addr pre_nat_dst_ip;
+    struct in_addr post_nat_src_ip;
+    struct in_addr post_nat_dst_ip;
+    uint16_t pre_nat_src_port;
+    uint16_t pre_nat_dst_port;
+    uint16_t post_nat_src_port;
+    uint16_t post_nat_dst_port;
 };
 
 /** Circular buffer of nat record pointers.
  * TODO Access to the following variables should be exclusive (threads).
  */
-struct nat_record *buf_records[RECORDS_MAX] = { NULL };
-int buf_begin = 0;
-int buf_end = 0;
+extern struct nat_record *buf_records[RECORDS_MAX];
+extern int buf_begin;
+extern int buf_end;
 
 void export_init(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
+
+struct nat_record *nat_record_new(void);
+
+#endif /* EXPORT_H */
