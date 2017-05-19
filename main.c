@@ -92,6 +92,7 @@ void print_nat_header(struct nat_record *natr)
     printf(":%d", natr->post_nat_dst_port);
 
     printf("\n");
+    fflush(stdout);
 }
 
 /** Callback for the thread which catches NAT events and creates
@@ -188,8 +189,7 @@ int main(void)
     {
         ret = pthread_join(pt[i], &statp); 
         if (ret == -1) {
-            perror("Pthread join fail");
-            exit(1);
+            error("Pthread join fail");
         }
     }
 
