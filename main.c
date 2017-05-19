@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "export.h"
 
@@ -38,7 +39,6 @@ static int event_cb(enum nf_conntrack_msg_type type,
     {
         return NFCT_CB_CONTINUE;
     }
-
 
     natr = nat_record_new();
 
@@ -139,7 +139,16 @@ void thread_catcher(void *arg)
  */
 void thread_exporter(void *arg)
 {
-
+    while (1)
+    {
+        sem_wait(&cnt_buf_taken);
+        /* TODO: get the NAT record.
+         * Either send it right here or make a local copy and
+         * send it after sem_post. */
+        free(buf_records[buf_begin]);
+        buf_begin++;
+        sem_post(&cnt_buf_empty);
+    }
 }
 
 /** Callback for a thread that shall send template packets to the
@@ -147,7 +156,12 @@ void thread_exporter(void *arg)
  */
 void thread_template(void *arg)
 {
+    while (1)
+    {
+        sleep(TIMEOUT_TEMPLATE);
 
+        /* TODO: Send a template. */
+    }
 }
 
 int main(void)

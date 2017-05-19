@@ -4,12 +4,14 @@
 #include <netinet/ip.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <semaphore.h>
 
 /* TODO Replace the following with variable user input. */
 #define COLLECTOR_IP_STR "127.0.0.1"
 #define COLLECTOR_PORT 3001
 
 #define RECORDS_MAX 65536
+#define TIMEOUT_TEMPLATE 60
 
 /* Outgoing connection identification */
 extern int socket_out;
@@ -29,11 +31,14 @@ struct nat_record
 };
 
 /** Circular buffer of nat record pointers.
- * TODO Access to the following variables should be exclusive (threads).
  */
 extern struct nat_record *buf_records[RECORDS_MAX];
 extern int buf_begin;
 extern int buf_end;
+
+/* Exclusive access to the records buffer. */
+extern sem_t cnt_buf_empty;
+extern sem_t cnt_buf_taken;
 
 void export_init(void);
 void export_finish(void);

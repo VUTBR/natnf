@@ -12,6 +12,9 @@ struct nat_record *buf_records[RECORDS_MAX] = { NULL };
 int buf_begin = 0;
 int buf_end = 0;
 
+sem_t cnt_buf_empty;
+sem_t cnt_buf_taken;
+
 void export_init(void)
 {
     int ret;
@@ -30,20 +33,26 @@ void export_init(void)
     {
         error("inet_aton");
     }
+
+    sem_init(&cnt_buf_empty, 0, RECORDS_MAX);
+    sem_init(&cnt_buf_taken, 0, 0);
 }
 
 void export_finish(void)
 {
     close(socket_out);
+    sem_destroy(&cnt_buf_empty);
+    sem_destroy(&cnt_buf_taken);
 }
 
 /** Add a new nat record to the buffer.
  */
 void export_append(struct nat_record *natr)
 {
-    /* TODO exclusive access. */
+    sem_wait(&cnt_buf_empty);
     buf_records[buf_end] = natr;
     buf_end++;
+    sem_post(&cnt_buf_taken);
 }
 
 struct nat_record *nat_record_new(void)
