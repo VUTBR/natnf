@@ -19,6 +19,18 @@
 #define NAT_DELETE 2
 #define NAT_OTHER 0
 
+/* Some template fields definitions. */
+#define TL_SRC_IP 8
+#define TL_DST_IP 12
+#define TL_POST_NAT_SRC_IP 225
+#define TL_POST_NAT_DST_IP 226
+#define TL_SRC_PORT 7
+#define TL_DST_PORT 11
+#define TL_POST_NAT_SRC_PORT 227
+#define TL_POST_NAT_DST_PORT 228
+#define TL_NAT_EVENT 230
+#define TL_OBSERVATION_TIME_MS 323
+
 /* TODO Add fields that identify a NAT translation. */
 struct nat_record
 {
@@ -30,6 +42,7 @@ struct nat_record
     uint16_t pre_nat_dst_port;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
+    double timestamp_ms;
     uint8_t nat_event;
 };
 
@@ -42,6 +55,31 @@ struct export_settings
     int socket_out;
     struct sockaddr_in dest;
 };
+
+/** Template structures.
+ * For the detailed explanation of the fields, see:
+ * http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
+ */
+extern int template_full_fields[][2];
+extern int template_no_ports_fields[][2];
+
+struct template_full;
+struct template_no_ports;
+
+struct type_length
+{
+    uint16_t type;
+    uint16_t len;
+};
+
+/* A full template, including port numbers. */
+extern struct template_full;
+
+/* A template without port numbers, in case they can not be extracted. */
+extern struct template_no_ports;
+
+/* The complete template packet. */
+extern struct template_packet;
 
 extern struct export_settings exs;
 

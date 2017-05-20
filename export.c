@@ -6,6 +6,60 @@
 #include "export.h"
 #include "utils.h"
 
+int template_full_fields[][2] =
+{
+    {TL_SRC_IP, 4},
+    {TL_DST_IP, 4},
+    {TL_SRC_PORT, 2},
+    {TL_DST_PORT, 2},
+    {TL_POST_NAT_SRC_IP, 4},
+    {TL_POST_NAT_DST_IP, 4},
+    {TL_POST_NAT_SRC_PORT, 2},
+    {TL_POST_NAT_DST_PORT, 2},
+    {TL_NAT_EVENT, 1},
+    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of double */
+};
+int template_no_ports_fields[][2] =
+{
+    {TL_SRC_IP, 4},
+    {TL_DST_IP, 4},
+    {TL_POST_NAT_SRC_IP, 4},
+    {TL_POST_NAT_DST_IP, 4},
+    {TL_NAT_EVENT, 1},
+    {TL_OBSERVATION_TIME_MS, 8}
+};
+
+/* A full template, including port numbers. */
+struct template_full
+{
+    uint16_t template_id_1;
+    uint16_t field_count;
+    struct type_length tl[sizeof(template_full_fields) / sizeof(int[2])];
+};
+/* A template without port numbers, in case they can not be extracted. */
+struct template_no_ports
+{
+    uint16_t template_id_1;
+    uint16_t field_count;
+    struct type_length tl[sizeof(template_no_ports_fields) / sizeof(int[2])];
+};
+/* The complete template packet. */
+struct template_packet
+{
+    uint16_t version;
+    uint16_t count;
+    uint32_t sys_uptime;
+    uint32_t timestamp;
+    uint32_t seq_number;
+    uint32_t source_id;
+    /* Flow set: */
+    uint16_t flowset_id;
+    uint16_t flowset_len;
+    /* Templates: */
+    struct template_full template_1;
+    struct template_no_ports template_2;
+};
+
 struct export_settings exs;
 
 struct nat_record *buf_records[RECORDS_MAX] = { NULL };
