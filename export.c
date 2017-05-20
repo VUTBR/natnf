@@ -6,8 +6,7 @@
 #include "export.h"
 #include "utils.h"
 
-int socket_out;
-struct sockaddr_in dest;
+struct export_settings exs;
 
 struct nat_record *buf_records[RECORDS_MAX] = { NULL };
 int buf_begin = 0;
@@ -24,25 +23,34 @@ static char flowbuf[1500];
  */
 static char templbuf[1500];
 
-void export_init(void)
+/** Initialize the settings structure.
+ * TODO: This is the best place for reading settings from file.
+ */
+void export_init_settings(void)
 {
     int ret;
 
-    socket_out = socket(AF_INET, SOCK_DGRAM, 0);
-    if (socket_out == -1)
+    exs.ip_str = COLLECTOR_IP_STR;
+    exs.port = COLLECTOR_PORT;
+    exs.template_timeout = _TEMPLATE_TIMEOUT;
+    exs.socket_out = socket(AF_INET, SOCK_DGRAM, 0);
+    if (exs.socket_out == -1)
     {
         error("Socket not created");
     }
-
-    bzero(dest, sizeof(dest));
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(COLLECTOR_PORT);
-    ret = inet_aton(COLLECTOR_IP_STR, &dest.sin_addr);
+    bzero(exs.dest, sizeof(exs.dest));
+    exs.dest.sin_family = AF_INET;
+    exs.dest.sin_port = htons(exs.port);
+    ret = inet_aton(exs.ip_str, &exs.dest.sin_addr);
     if (ret == 0)
     {
         error("inet_aton");
     }
+}
 
+void export_init(void)
+{
+    export_init_settings();
     export_init_flow();
     export_init_template();
 
@@ -68,7 +76,7 @@ void export_init_template(void)
 
 void export_finish(void)
 {
-    close(socket_out);
+    close(exs.socket_out);
     sem_destroy(&cnt_buf_empty);
     sem_destroy(&cnt_buf_taken);
 }
@@ -92,7 +100,7 @@ void export_send_record(struct nat_record *natr)
     int flags;
     socklen_t addrlen;
 
-    //sendto(socket_out, flowbuf, len, flags, (struct sockaddr *)&dest, addrlen);
+    //sendto(exs.socket_out, flowbuf, len, flags, (struct sockaddr *)&exs.dest, addrlen);
 }
 
 struct nat_record *nat_record_new(void)

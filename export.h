@@ -11,17 +11,13 @@
 #define COLLECTOR_PORT 3001
 
 #define RECORDS_MAX 65536
-#define TIMEOUT_TEMPLATE 60
+#define _TEMPLATE_TIMEOUT 60
 
 /* See https://www.iana.org/assignments/ipfix/ipfix.xml#ipfix-nat-event-type
  * for the meaning of these values.*/
 #define NAT_CREATE 1
 #define NAT_DELETE 2
 #define NAT_OTHER 0
-
-/* Outgoing connection identification */
-extern int socket_out;
-extern struct sockaddr_in sin;
 
 /* TODO Add fields that identify a NAT translation. */
 struct nat_record
@@ -37,6 +33,18 @@ struct nat_record
     uint8_t nat_event;
 };
 
+struct export_settings
+{
+    char *ip_str;
+    int port;
+    int template_timeout;
+    /* Outgoing connection identification: */
+    int socket_out;
+    struct sockaddr_in dest;
+};
+
+extern struct export_settings exs;
+
 /** Circular buffer of nat record pointers.
  */
 extern struct nat_record *buf_records[RECORDS_MAX];
@@ -47,6 +55,7 @@ extern int buf_end;
 extern sem_t cnt_buf_empty;
 extern sem_t cnt_buf_taken;
 
+void export_init_settings(void);
 void export_init(void);
 void export_init_flow(void);
 void export_init_template(void);
