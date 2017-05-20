@@ -140,16 +140,16 @@ void thread_exporter(void *arg)
 {
     while (1)
     {
-        DEBUG("sem_wait() call.\n");
+        DEBUG("sem_wait() call.");
         sem_wait(&cnt_buf_taken);
-        DEBUG("Enter critical section.\n");
+        DEBUG("Enter critical section.");
         /* TODO: get the NAT record.
          * Either send it right here or make a local copy and
          * send it after sem_post. */
         free(buf_records[buf_begin]);
         buf_begin++;
         sem_post(&cnt_buf_empty);
-        DEBUG("Leave critical section.\n");
+        DEBUG("Leave critical section.");
     }
 }
 
@@ -162,6 +162,7 @@ void thread_template(void *arg)
     {
         sleep(TIMEOUT_TEMPLATE);
 
+        DEBUG("Sending template");
 
         /* TODO: Send a template. */
     }

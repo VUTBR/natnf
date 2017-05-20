@@ -50,13 +50,13 @@ void export_finish(void)
  */
 void export_append(struct nat_record *natr)
 {
-    DEBUG("sem_wait() call.\n");
+    DEBUG("sem_wait() call.");
     sem_wait(&cnt_buf_empty);
-    DEBUG("Enter critical section.\n");
+    DEBUG("Enter critical section.");
     buf_records[buf_end] = natr;
     buf_end++;
     sem_post(&cnt_buf_taken);
-    DEBUG("Leave critical section.\n");
+    DEBUG("Leave critical section.");
 }
 
 struct nat_record *nat_record_new(void)
