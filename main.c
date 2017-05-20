@@ -27,7 +27,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	int is_nat;
     struct nat_record *natr;
 
-	if ( NFCT_T_UPDATE == type )
+	if (type == NFCT_T_UPDATE)
 	{
 		return NFCT_CB_CONTINUE;
 	}
@@ -43,7 +43,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 
     natr = nat_record_new();
 
-	parse_nat_header(natr, ct);
+	parse_nat_header(natr, type, ct);
 	print_nat_header(natr);
     export_append(natr);
 
@@ -55,6 +55,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 }
 
 void parse_nat_header(struct nat_record *natr,
+                      enum nf_conntrack_msg_type type,
                       struct nf_conntrack *ct)
 {
     struct in_addr ip;
@@ -74,23 +75,39 @@ void parse_nat_header(struct nat_record *natr,
     /* The following two are correctly reversed (dst and src)! */
     natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
     natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
-
-    return;
+    if (type == NFCT_T_NEW)
+        natr->nat_event = NAT_CREATE;
+    else if (type == NFCT_T_DESTROY)
+        natr->nat_event = NAT_DELETE;
+    else
+        natr->nat_event = NAT_OTHER;
 }
 
 void print_nat_header(struct nat_record *natr)
 {
-    printf("%s", inet_ntoa(natr->pre_nat_src_ip));
-    printf(":%d", natr->pre_nat_src_port);
+    char *type[3] =
+    {
+        [0] = "UNKNOWN",
+        [1] = "CREATE",
+        [2] = "DELETE"
+    };
+
+    printf("[%s]", type[natr->nat_event]);
+    printf(" %s", inet_ntoa(natr->pre_nat_src_ip));
+    if (natr->pre_nat_src_port != 0)
+        printf(":%d", natr->pre_nat_src_port);
     printf(" %s", inet_ntoa(natr->pre_nat_dst_ip));
-    printf(":%d", natr->pre_nat_dst_port);
+    if (natr->pre_nat_dst_port != 0)
+        printf(":%d", natr->pre_nat_dst_port);
 
     printf(" <--> ");
 
     printf("%s", inet_ntoa(natr->post_nat_src_ip));
-    printf(":%d", natr->post_nat_src_port);
+    if (natr->post_nat_src_port != 0)
+        printf(":%d", natr->post_nat_src_port);
     printf(" %s", inet_ntoa(natr->post_nat_dst_ip));
-    printf(":%d", natr->post_nat_dst_port);
+    if (natr->post_nat_dst_port != 0)
+        printf(":%d", natr->post_nat_dst_port);
 
     printf("\n");
     fflush(stdout);
@@ -106,7 +123,7 @@ void thread_catcher(void *arg)
 	struct nf_conntrack *ct;
     int ret;
 
-	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW);
+	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW | NF_NETLINK_CONNTRACK_DESTROY);
 	if (!h) {
 		error("nfct_open");
 	}
@@ -116,7 +133,7 @@ void thread_catcher(void *arg)
 		error("nfct_new");
 	}
 
-	nfct_callback_register(h, NFCT_T_NEW, event_cb, ct);
+	nfct_callback_register(h, NFCT_T_ALL, event_cb, ct);
 
 	printf("TEST: waiting for events...\n");
 
@@ -138,18 +155,20 @@ void thread_catcher(void *arg)
  */
 void thread_exporter(void *arg)
 {
+    struct nat_record *natr;
     while (1)
     {
         DEBUG("sem_wait() call.");
         sem_wait(&cnt_buf_taken);
         DEBUG("Enter critical section.");
-        /* TODO: get the NAT record.
-         * Either send it right here or make a local copy and
-         * send it after sem_post. */
+        natr = nat_record_dup(buf_records[buf_begin]);
         free(buf_records[buf_begin]);
         buf_begin++;
         sem_post(&cnt_buf_empty);
         DEBUG("Leave critical section.");
+        if (natr == NULL)
+            continue;
+        export_send_record(natr);
     }
 }
 

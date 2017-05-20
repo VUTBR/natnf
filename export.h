@@ -13,6 +13,12 @@
 #define RECORDS_MAX 65536
 #define TIMEOUT_TEMPLATE 60
 
+/* See https://www.iana.org/assignments/ipfix/ipfix.xml#ipfix-nat-event-type
+ * for the meaning of these values.*/
+#define NAT_CREATE 1
+#define NAT_DELETE 2
+#define NAT_OTHER 0
+
 /* Outgoing connection identification */
 extern int socket_out;
 extern struct sockaddr_in sin;
@@ -28,6 +34,7 @@ struct nat_record
     uint16_t pre_nat_dst_port;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
+    uint8_t nat_event;
 };
 
 /** Circular buffer of nat record pointers.
@@ -41,9 +48,13 @@ extern sem_t cnt_buf_empty;
 extern sem_t cnt_buf_taken;
 
 void export_init(void);
+void export_init_flow(void);
+void export_init_template(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
+void export_send_record(struct nat_record *natr);
 
 struct nat_record *nat_record_new(void);
+struct nat_record *nat_record_dup(struct nat_record *natr);
 
 #endif /* EXPORT_H */
