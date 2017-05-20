@@ -4,6 +4,7 @@
 
 #include "error.h"
 #include "export.h"
+#include "utils.h"
 
 int socket_out;
 struct sockaddr_in sin;
@@ -49,10 +50,13 @@ void export_finish(void)
  */
 void export_append(struct nat_record *natr)
 {
+    DEBUG("sem_wait() call.\n");
     sem_wait(&cnt_buf_empty);
+    DEBUG("Enter critical section.\n");
     buf_records[buf_end] = natr;
     buf_end++;
     sem_post(&cnt_buf_taken);
+    DEBUG("Leave critical section.\n");
 }
 
 struct nat_record *nat_record_new(void)

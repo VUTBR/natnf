@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "export.h"
+#include "utils.h"
 
 #define EVENTS_UNLIMITED
 #define EVENTS_MAX 10
@@ -139,13 +140,16 @@ void thread_exporter(void *arg)
 {
     while (1)
     {
+        DEBUG("sem_wait() call.\n");
         sem_wait(&cnt_buf_taken);
+        DEBUG("Enter critical section.\n");
         /* TODO: get the NAT record.
          * Either send it right here or make a local copy and
          * send it after sem_post. */
         free(buf_records[buf_begin]);
         buf_begin++;
         sem_post(&cnt_buf_empty);
+        DEBUG("Leave critical section.\n");
     }
 }
 
@@ -157,6 +161,7 @@ void thread_template(void *arg)
     while (1)
     {
         sleep(TIMEOUT_TEMPLATE);
+
 
         /* TODO: Send a template. */
     }
