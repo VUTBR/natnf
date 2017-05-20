@@ -179,7 +179,7 @@ void thread_template(void *arg)
 {
     while (1)
     {
-        sleep(exs.timeout_template);
+        sleep(exs.template_timeout);
 
         DEBUG("Sending template");
 
