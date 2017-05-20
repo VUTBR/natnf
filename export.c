@@ -62,6 +62,7 @@ struct nat_record *nat_record_new(void)
     if (new == NULL)
     {
         perror("malloc returned NULL");
+        /* Continue even if null. */
     }
     return new;
 }

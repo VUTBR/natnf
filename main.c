@@ -107,14 +107,12 @@ void thread_catcher(void *arg)
 
 	h = nfct_open(CONNTRACK, NF_NETLINK_CONNTRACK_NEW);
 	if (!h) {
-		perror("nfct_open");
-		return 0;
+		error("nfct_open");
 	}
 
     ct = nfct_new();
 	if (!ct) {
-		perror("nfct_new");
-		return 0;
+		error("nfct_new");
 	}
 
 	nfct_callback_register(h, NFCT_T_NEW, event_cb, ct);
