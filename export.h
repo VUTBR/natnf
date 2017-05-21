@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
+#include <pthread.h>
 
 /* TODO Replace the following with variable user input. */
 #define COLLECTOR_IP_STR "127.0.0.1"
@@ -97,6 +98,9 @@ extern int buf_end;
 extern sem_t cnt_buf_empty;
 extern sem_t cnt_buf_taken;
 
+/* Exclusive outgoing socket access. */
+extern pthread_mutex_t mutex_socket;
+
 void export_init_settings(void);
 void export_init(void);
 void export_init_flow(void);
@@ -104,6 +108,7 @@ void export_init_template(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
 void export_send_record(struct nat_record *natr);
+void export_send_template(void);
 
 struct nat_record *nat_record_new(void);
 struct nat_record *nat_record_dup(struct nat_record *natr);

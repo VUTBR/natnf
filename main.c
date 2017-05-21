@@ -179,11 +179,10 @@ void thread_template(void *arg)
 {
     while (1)
     {
-        sleep(exs.template_timeout);
-
         DEBUG("Sending template");
-
-        /* TODO: Send a template. */
+        export_send_template();
+        DEBUG("Template sent.");
+        sleep(exs.template_timeout);
     }
 }
 

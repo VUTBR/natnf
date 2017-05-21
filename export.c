@@ -3,6 +3,7 @@
 #include <netinet/ip.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 #include "error.h"
 #include "export.h"
@@ -75,6 +76,8 @@ int buf_end = 0;
 sem_t cnt_buf_empty;
 sem_t cnt_buf_taken;
 
+pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
+
 /** A buffer with pre-calculated data fields for flow export.
  */
 static char flowbuf[1500];
@@ -143,31 +146,31 @@ void export_init_template(void)
         perror("gettimeofday");
     bzero(template, sizeof(template));
 
-    template.version = 9;
-    template.count = 2; /* 2 templates in a flow. */
-    template.sys_uptime = info.uptime;
-    template.timestamp = tv.tv_sec * 1000 + (tv.tv_usec / 1000);
-    template.seq_number = 0;
-    template.source_id = 0x000000aa;
+    template.version = htons(9);
+    template.count = htons(2); /* 2 templates in a flow. */
+    template.sys_uptime = htonl(info.uptime);
+    template.timestamp = htonl(tv.tv_sec * 1000 + (tv.tv_usec / 1000));
+    template.seq_number = htonl(0);
+    template.source_id = htonl(0x000000aa);
 
-    template.flowset_id = 0;
-    template.flowset_len = sizeof(template.flowset_id) + sizeof(template.flowset_len) +
-        sizeof(template.t1) + sizeof(template.t2);
+    template.flowset_id = htons(0);
+    template.flowset_len = htons(sizeof(template.flowset_id) + sizeof(template.flowset_len) +
+            sizeof(template.t1) + sizeof(template.t2));
 
-    template.t1.template_id = TEMPLATE_ID_FULL;
-    template.t1.field_count = N_FIELDS_FULL;
+    template.t1.template_id = htons(TEMPLATE_ID_FULL);
+    template.t1.field_count = htons(N_FIELDS_FULL);
     for (i = 0; i < N_FIELDS_FULL; i++)
     {
-        template.t1.tl[i].type = template_full_fields[i][0];
-        template.t1.tl[i].len = template_full_fields[i][1];
+        template.t1.tl[i].type = htons(template_full_fields[i][0]);
+        template.t1.tl[i].len = htons(template_full_fields[i][1]);
     }
 
-    template.t2.template_id = TEMPLATE_ID_NO_PORTS;
-    template.t2.field_count = N_FIELDS_NO_PORTS;
+    template.t2.template_id = htons(TEMPLATE_ID_NO_PORTS);
+    template.t2.field_count = htons(N_FIELDS_NO_PORTS);
     for (i = 0; i < N_FIELDS_NO_PORTS; i++)
     {
-        template.t2.tl[i].type = template_no_ports_fields[i][0];
-        template.t2.tl[i].len = template_no_ports_fields[i][1];
+        template.t2.tl[i].type = htons(template_no_ports_fields[i][0]);
+        template.t2.tl[i].len = htons(template_no_ports_fields[i][1]);
     }
 }
 
@@ -198,6 +201,21 @@ void export_send_record(struct nat_record *natr)
     socklen_t addrlen;
 
     //sendto(exs.socket_out, flowbuf, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+}
+
+void export_send_template(void)
+{
+    size_t len;
+    int flags;
+    socklen_t addrlen;
+
+    len = sizeof(template);
+    flags = 0;
+    addrlen = sizeof(struct sockaddr);
+
+    pthread_mutex_lock(&mutex_socket);
+    sendto(exs.socket_out, &template, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+    pthread_mutex_unlock(&mutex_socket);
 }
 
 struct nat_record *nat_record_new(void)
