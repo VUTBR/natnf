@@ -34,6 +34,15 @@ int template_no_ports_fields[][2] =
  * For the detailed explanation of the fields, see:
  * http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
  */
+struct packet_header
+{
+    uint16_t version;
+    uint16_t count;
+    uint32_t sys_uptime;
+    uint32_t timestamp;
+    uint32_t seq_number;
+    uint32_t source_id;
+};
 /* A full template, including port numbers. */
 struct template_full
 {
@@ -146,7 +155,7 @@ void export_init_settings(void)
     {
         error("Socket not created");
     }
-    bzero(exs.dest, sizeof(exs.dest));
+    bzero(&exs.dest, sizeof(exs.dest));
     exs.dest.sin_family = AF_INET;
     exs.dest.sin_port = htons(exs.port);
     ret = inet_aton(exs.ip_str, &exs.dest.sin_addr);
@@ -166,12 +175,31 @@ void export_init(void)
     sem_init(&cnt_buf_taken, 0, 0);
 }
 
+void export_init_header(void *packet)
+{
+    struct packet_header *hdr;
+    hdr = (struct packet_header *) packet;
+
+    hdr->version = htons(9);
+    hdr->count = htons(1); /* A default value, the caller should ideally set it manually. */
+    /* Uptime and timestamp will be updated on each template sending, initialize them
+     * anyway: */
+    hdr->sys_uptime = htonl(get_uptime_sec());
+    hdr->timestamp = htonl(get_timestamp_ms());
+    hdr->seq_number = htonl(flow_sequence);
+    hdr->source_id = htonl(0x000000aa);
+}
+
 /** Initialize the flow buffer.
  * TODO
  */
 void export_init_flow(void)
 {
+    bzero(&flow_full, sizeof(flow_full));
+    bzero(&flow_no_ports, sizeof(flow_no_ports));
 
+    export_init_header(&flow_full);
+    export_init_header(&flow_no_ports);
 }
 
 /** Initialize the template buffer.
@@ -180,16 +208,10 @@ void export_init_template(void)
 {
     int ret, i;
 
-    bzero(template, sizeof(template));
+    bzero(&template, sizeof(template));
 
-    template.version = htons(9);
+    export_init_header(&template);
     template.count = htons(2); /* 2 templates in a flow. */
-    /* Uptime and timestamp will be updated on each template sending, initialize them
-     * anyway: */
-    template.sys_uptime = htonl(get_uptime_sec());
-    template.timestamp = htonl(get_timestamp_ms());
-    template.seq_number = htonl(flow_sequence);
-    template.source_id = htonl(0x000000aa);
 
     template.flowset_id = htons(0);
     template.flowset_len = htons(sizeof(template.flowset_id) + sizeof(template.flowset_len) +
