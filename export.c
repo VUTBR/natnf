@@ -1,8 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
-#include <sys/sysinfo.h>
-#include <sys/time.h>
 #include <pthread.h>
 
 #include "error.h"
@@ -130,26 +128,19 @@ void export_init_flow(void)
 }
 
 /** Initialize the template buffer.
- * TODO
  */
 void export_init_template(void)
 {
-    struct sysinfo info;
-    struct timeval tv;
     int ret, i;
 
-    ret = sysinfo(&info);
-    if (ret == -1)
-        perror("sysinfo");
-    ret = gettimeofday(&tv, NULL);
-    if (ret == -1)
-        perror("gettimeofday");
     bzero(template, sizeof(template));
 
     template.version = htons(9);
     template.count = htons(2); /* 2 templates in a flow. */
-    template.sys_uptime = htonl(info.uptime);
-    template.timestamp = htonl(tv.tv_sec * 1000 + (tv.tv_usec / 1000));
+    /* Uptime and timestamp will be updated on each template sending, initialize them
+     * anyway: */
+    template.sys_uptime = htonl(get_uptime_sec());
+    template.timestamp = htonl(get_timestamp_ms());
     template.seq_number = htonl(0);
     template.source_id = htonl(0x000000aa);
 
