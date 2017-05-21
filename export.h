@@ -12,7 +12,7 @@
 #define COLLECTOR_PORT 3001
 
 #define RECORDS_MAX 65536
-#define _TEMPLATE_TIMEOUT 1
+#define _TEMPLATE_TIMEOUT 60
 
 #define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
 #define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
@@ -39,6 +39,8 @@
 #define TL_POST_NAT_DST_PORT 228
 #define TL_NAT_EVENT 230
 #define TL_OBSERVATION_TIME_MS 323
+
+#define member_size(type, member) sizeof(((type *)0)->member)
 
 /* Fields that identify a NAT translation. */
 struct nat_record

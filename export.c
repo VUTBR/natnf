@@ -100,6 +100,7 @@ struct flow_packet_full
     uint16_t flowset_len;
 
     struct flow_full flow;
+    char padding[32];
 };
 
 struct flow_no_ports
@@ -124,6 +125,7 @@ struct flow_packet_no_ports
     uint16_t flowset_len;
 
     struct flow_no_ports flow;
+    char padding[32];
 };
 
 struct export_settings exs;
@@ -158,7 +160,7 @@ void export_init_settings(void)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
-    exs.socket_out = socket(AF_INET, SOCK_DGRAM, 0);
+    exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (exs.socket_out == -1)
     {
         error("Socket not created");
@@ -264,10 +266,74 @@ void export_append(struct nat_record *natr)
 void export_send_record(struct nat_record *natr)
 {
     size_t len;
-    int flags;
+    int flags, is_full, ret;
     socklen_t addrlen;
+    struct packet_header *hdr;
+    void *sendbuf;
 
-    //sendto(exs.socket_out, flowbuf, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+    addrlen = sizeof(struct sockaddr);
+    flags = 0;
+    is_full = (natr->pre_nat_src_port != 0 &&
+            natr->pre_nat_dst_port != 0 &&
+            natr->post_nat_src_port != 0 &&
+            natr->post_nat_dst_port != 0);
+
+    /* Fill in header values. */
+    hdr = is_full ? (struct packet_header *) &flow_full
+        : (struct packet_header *) &flow_no_ports;
+    hdr->count = htons(1);
+    hdr->sys_uptime = htonl(get_uptime_sec());
+    hdr->timestamp = htonl(get_timestamp_ms());
+
+    /* Fill in nat record data. */
+    if (is_full)
+    {
+        flow_full.flowset_id = htons(TEMPLATE_ID_FULL);
+        flow_full.flowset_len = htons(sizeof(flow_full.flowset_id) +
+                sizeof(flow_full.flowset_len) +
+                sizeof(flow_full.flow));
+        flow_full.flow.src_ip = natr->pre_nat_src_ip.s_addr;
+        flow_full.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
+        flow_full.flow.src_port = htons(natr->pre_nat_src_port);
+        flow_full.flow.dst_port = htons(natr->pre_nat_dst_port);
+        flow_full.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
+        flow_full.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_full.flow.post_nat_src_port = htons(natr->post_nat_src_port);
+        flow_full.flow.post_nat_dst_port = htons(natr->post_nat_dst_port);
+        flow_full.flow.nat_event = htons(natr->nat_event);
+        flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
+        len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
+        sendbuf = (void *) &flow_full;
+    }
+    else
+    {
+        flow_no_ports.flowset_id = htons(TEMPLATE_ID_NO_PORTS);
+        flow_no_ports.flowset_len = htons(sizeof(flow_no_ports.flowset_id) +
+                sizeof(flow_no_ports.flowset_len) +
+                sizeof(flow_no_ports.flow));
+        flow_no_ports.flow.src_ip = natr->pre_nat_src_ip.s_addr;
+        flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
+        flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
+        flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_no_ports.flow.nat_event = htons(natr->nat_event);
+        flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
+        len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
+        sendbuf = (void *) &flow_no_ports;
+    }
+
+    /* TODO hdr->seq_number in critical section */
+    DEBUG("Sending data flow packet...");
+    pthread_mutex_lock(&mutex_socket);
+    hdr->seq_number = htonl(flow_sequence);
+    flow_sequence++;
+    if (is_full)
+        ret = sendto(exs.socket_out, &flow_full, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+    else
+        ret = sendto(exs.socket_out, &flow_no_ports, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+    if (ret == -1)
+        perror("sendto");
+    pthread_mutex_unlock(&mutex_socket);
+    DEBUG("Data flow packet sent.");
 }
 
 void export_send_template(void)
