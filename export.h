@@ -86,6 +86,10 @@ extern struct template_no_ports;
 /* The complete template packet. */
 extern struct template_packet;
 
+/* Flow packet structures. */
+extern struct flow_packet_full;
+extern struct flow_packet_no_ports;
+
 extern struct export_settings exs;
 
 /** Circular buffer of nat record pointers.

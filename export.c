@@ -65,6 +65,50 @@ struct template_packet
     struct template_no_ports t2;
 };
 
+struct flow_packet_full
+{
+    uint16_t version;
+    uint16_t count;
+    uint32_t sys_uptime;
+    uint32_t timestamp;
+    uint32_t seq_number;
+    uint32_t source_id;
+    /* Flow set: */
+    uint16_t flowset_id;
+    uint16_t flowset_len;
+
+    uint32_t src_ip;
+    uint32_t dst_ip;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint32_t post_nat_src_ip;
+    uint32_t post_nat_dst_ip;
+    uint16_t post_nat_src_port;
+    uint16_t post_nat_dst_port;
+    uint8_t nat_event;
+    double observation_time_ms;
+};
+
+struct flow_packet_no_ports
+{
+    uint16_t version;
+    uint16_t count;
+    uint32_t sys_uptime;
+    uint32_t timestamp;
+    uint32_t seq_number;
+    uint32_t source_id;
+    /* Flow set: */
+    uint16_t flowset_id;
+    uint16_t flowset_len;
+
+    uint32_t src_ip;
+    uint32_t dst_ip;
+    uint32_t post_nat_src_ip;
+    uint32_t post_nat_dst_ip;
+    uint8_t nat_event;
+    double observation_time_ms;
+};
+
 struct export_settings exs;
 
 struct nat_record *buf_records[RECORDS_MAX] = { NULL };
@@ -80,7 +124,8 @@ int flow_sequence = 0;
 
 /** A buffer with pre-calculated data fields for flow export.
  */
-static char flowbuf[1500];
+static struct flow_packet_full flow_full;
+static struct flow_packet_no_ports flow_no_ports;
 
 /** A buffer with pre-calculated data fields for template export.
  */
