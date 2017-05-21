@@ -1,6 +1,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/ip.h>
+#include <sys/sysinfo.h>
+#include <sys/time.h>
 
 #include "error.h"
 #include "export.h"
@@ -29,19 +31,23 @@ int template_no_ports_fields[][2] =
     {TL_OBSERVATION_TIME_MS, 8}
 };
 
+/** Template structures.
+ * For the detailed explanation of the fields, see:
+ * http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
+ */
 /* A full template, including port numbers. */
 struct template_full
 {
-    uint16_t template_id_1;
+    uint16_t template_id;
     uint16_t field_count;
-    struct type_length tl[sizeof(template_full_fields) / sizeof(int[2])];
+    struct type_length tl[N_FIELDS_FULL];
 };
 /* A template without port numbers, in case they can not be extracted. */
 struct template_no_ports
 {
-    uint16_t template_id_1;
+    uint16_t template_id;
     uint16_t field_count;
-    struct type_length tl[sizeof(template_no_ports_fields) / sizeof(int[2])];
+    struct type_length tl[N_FIELDS_NO_PORTS];
 };
 /* The complete template packet. */
 struct template_packet
@@ -56,8 +62,8 @@ struct template_packet
     uint16_t flowset_id;
     uint16_t flowset_len;
     /* Templates: */
-    struct template_full template_1;
-    struct template_no_ports template_2;
+    struct template_full t1;
+    struct template_no_ports t2;
 };
 
 struct export_settings exs;
@@ -75,7 +81,7 @@ static char flowbuf[1500];
 
 /** A buffer with pre-calculated data fields for template export.
  */
-static char templbuf[1500];
+static struct template_packet template;
 
 /** Initialize the settings structure.
  * TODO: This is the best place for reading settings from file.
@@ -125,7 +131,44 @@ void export_init_flow(void)
  */
 void export_init_template(void)
 {
+    struct sysinfo info;
+    struct timeval tv;
+    int ret, i;
 
+    ret = sysinfo(&info);
+    if (ret == -1)
+        perror("sysinfo");
+    ret = gettimeofday(&tv, NULL);
+    if (ret == -1)
+        perror("gettimeofday");
+    bzero(template, sizeof(template));
+
+    template.version = 9;
+    template.count = 2; /* 2 templates in a flow. */
+    template.sys_uptime = info.uptime;
+    template.timestamp = tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+    template.seq_number = 0;
+    template.source_id = 0x000000aa;
+
+    template.flowset_id = 0;
+    template.flowset_len = sizeof(template.flowset_id) + sizeof(template.flowset_len) +
+        sizeof(template.t1) + sizeof(template.t2);
+
+    template.t1.template_id = TEMPLATE_ID_FULL;
+    template.t1.field_count = N_FIELDS_FULL;
+    for (i = 0; i < N_FIELDS_FULL; i++)
+    {
+        template.t1.tl[i].type = template_full_fields[i][0];
+        template.t1.tl[i].len = template_full_fields[i][1];
+    }
+
+    template.t2.template_id = TEMPLATE_ID_NO_PORTS;
+    template.t2.field_count = N_FIELDS_NO_PORTS;
+    for (i = 0; i < N_FIELDS_NO_PORTS; i++)
+    {
+        template.t2.tl[i].type = template_no_ports_fields[i][0];
+        template.t2.tl[i].len = template_no_ports_fields[i][1];
+    }
 }
 
 void export_finish(void)

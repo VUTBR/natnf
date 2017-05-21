@@ -13,13 +13,21 @@
 #define RECORDS_MAX 65536
 #define _TEMPLATE_TIMEOUT 60
 
+#define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
+#define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
+
+#define TEMPLATE_ID_FULL 256
+#define TEMPLATE_ID_NO_PORTS 257
+
 /* See https://www.iana.org/assignments/ipfix/ipfix.xml#ipfix-nat-event-type
  * for the meaning of these values.*/
 #define NAT_CREATE 1
 #define NAT_DELETE 2
 #define NAT_OTHER 0
 
-/* Some template fields definitions. */
+/* Some template fields definitions.
+ * See https://www.iana.org/assignments/ipfix/ipfix.xhtml for their meanings.
+ */
 #define TL_SRC_IP 8
 #define TL_DST_IP 12
 #define TL_POST_NAT_SRC_IP 225
@@ -31,7 +39,7 @@
 #define TL_NAT_EVENT 230
 #define TL_OBSERVATION_TIME_MS 323
 
-/* TODO Add fields that identify a NAT translation. */
+/* Fields that identify a NAT translation. */
 struct nat_record
 {
     struct in_addr pre_nat_src_ip;
@@ -56,10 +64,6 @@ struct export_settings
     struct sockaddr_in dest;
 };
 
-/** Template structures.
- * For the detailed explanation of the fields, see:
- * http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
- */
 extern int template_full_fields[][2];
 extern int template_no_ports_fields[][2];
 
