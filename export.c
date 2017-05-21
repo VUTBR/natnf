@@ -76,6 +76,8 @@ sem_t cnt_buf_taken;
 
 pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
 
+int flow_sequence = 0;
+
 /** A buffer with pre-calculated data fields for flow export.
  */
 static char flowbuf[1500];
@@ -141,7 +143,7 @@ void export_init_template(void)
      * anyway: */
     template.sys_uptime = htonl(get_uptime_sec());
     template.timestamp = htonl(get_timestamp_ms());
-    template.seq_number = htonl(0);
+    template.seq_number = htonl(flow_sequence);
     template.source_id = htonl(0x000000aa);
 
     template.flowset_id = htons(0);
@@ -205,6 +207,10 @@ void export_send_template(void)
     addrlen = sizeof(struct sockaddr);
 
     pthread_mutex_lock(&mutex_socket);
+    template.sys_uptime = htonl(get_uptime_sec());
+    template.timestamp = htonl(get_timestamp_ms());
+    template.seq_number = htonl(flow_sequence);
+    flow_sequence++;
     sendto(exs.socket_out, &template, len, flags, (struct sockaddr *)&exs.dest, addrlen);
     pthread_mutex_unlock(&mutex_socket);
 }

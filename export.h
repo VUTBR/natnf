@@ -12,7 +12,7 @@
 #define COLLECTOR_PORT 3001
 
 #define RECORDS_MAX 65536
-#define _TEMPLATE_TIMEOUT 60
+#define _TEMPLATE_TIMEOUT 1
 
 #define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
 #define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
@@ -100,6 +100,9 @@ extern sem_t cnt_buf_taken;
 
 /* Exclusive outgoing socket access. */
 extern pthread_mutex_t mutex_socket;
+
+/* Cumulative netflow packet counter. */
+extern int flow_sequence;
 
 void export_init_settings(void);
 void export_init(void);
