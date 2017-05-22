@@ -1,3 +1,12 @@
+/***********************************************/
+/*          Jakub Mackovič - xmacko00          */
+/*          Jakub Pastuszek - xpastu00         */
+/*               VUT FIT Brno                  */
+/*      Export informací o překladu adres      */
+/*               Květen 2017                   */
+/*                config.h                     */
+/***********************************************/
+
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -15,6 +24,7 @@
 #define TEMPLATE_TIMEOUT "TEMPLATE_TIMEOUT"
 
 char * trimwhitespace(char *);
-void get_config(struct export_settings *);
+int isValidIpAddress(char *);
+void load_config_file();
 
 #endif /* CONFIG_H */

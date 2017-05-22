@@ -169,6 +169,9 @@ void export_init_settings(void)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
+    
+    load_config_file();
+
     exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (exs.socket_out == -1)
     {
