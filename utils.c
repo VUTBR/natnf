@@ -16,7 +16,7 @@ uint32_t get_uptime_ms(void)
     return info.uptime * 1000;
 }
 
-uint32_t get_timestamp_ms(void)
+uint32_t get_timestamp_s(void)
 {
     struct timeval tv;
     int ret;
@@ -24,5 +24,5 @@ uint32_t get_timestamp_ms(void)
     ret = gettimeofday(&tv, NULL);
     if (ret == -1)
         perror("gettimeofday");
-    return tv.tv_sec * 1000 + (tv.tv_usec / 1000);
+    return tv.tv_sec;
 }

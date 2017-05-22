@@ -9,6 +9,6 @@ extern const int is_debug;
     if (is_debug) fprintf(stderr, "[%s] %s\n", __func__, msg);
 
 uint32_t get_uptime_ms(void);
-uint32_t get_timestamp_ms(void);
+uint32_t get_timestamp_s(void);
 
 #endif /* UTILS_H */
