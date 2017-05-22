@@ -322,6 +322,7 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
         flow_full.flow.nat_event = natr->nat_event;
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
+        printf("flow_full.flow.observation_time_ms=%x\n", flow_full.flow.observation_time_ms);
         len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
         //sendbuf = (void *) &flow_full;
 

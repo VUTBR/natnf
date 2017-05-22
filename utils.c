@@ -1,5 +1,7 @@
 #include <sys/sysinfo.h>
 #include <sys/time.h>
+#include <time.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include "utils.h"
 
@@ -25,4 +27,13 @@ uint32_t get_timestamp_s(void)
     if (ret == -1)
         perror("gettimeofday");
     return tv.tv_sec;
+}
+
+uint32_t get_timestamp_ms(void)
+{
+    struct timespec ts;
+    uint32_t ms;
+
+    clock_gettime(0, &ts);
+    ms = ts.tv_sec * 1000 + ts.tv_nsec / 1.0e6;
 }

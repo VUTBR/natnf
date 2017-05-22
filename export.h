@@ -55,7 +55,7 @@ struct nat_record
     uint16_t pre_nat_dst_port;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
-    double timestamp_ms;
+    uint32_t timestamp_ms;
     uint8_t nat_event;
 };
 
