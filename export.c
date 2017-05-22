@@ -169,6 +169,9 @@ void export_init_settings(void)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
+    
+    load_config_file();
+
     exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (exs.socket_out == -1)
     {
@@ -321,8 +324,12 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_src_port = natr->post_nat_src_port;
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
         flow_full.flow.nat_event = natr->nat_event;
+<<<<<<< HEAD
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
         printf("flow_full.flow.observation_time_ms=%x\n", flow_full.flow.observation_time_ms);
+=======
+        flow_full.flow.observation_time_ms = htonl(natr->timestamp_ms); /* XXX network byte order? */
+>>>>>>> cde06db3abfab8459c7cc567c9f2940a1da15847
         len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
         //sendbuf = (void *) &flow_full;
 
@@ -340,7 +347,7 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
         flow_no_ports.flow.nat_event = natr->nat_event;
-        flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
+        flow_no_ports.flow.observation_time_ms = htonl(natr->timestamp_ms); /* network byte order? */
         len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
         //sendbuf = (void *) &flow_no_ports;
 
