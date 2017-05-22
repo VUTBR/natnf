@@ -75,6 +75,8 @@ void parse_nat_header(struct nat_record *natr,
     /* The following two are correctly reversed (dst and src)! */
     natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
     natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
+    natr->timestamp_ms = get_timestamp_ms();
+    printf("timestamp_ms=%x\n", natr->timestamp_ms);
     if (type == NFCT_T_NEW)
         natr->nat_event = NAT_CREATE;
     else if (type == NFCT_T_DESTROY)

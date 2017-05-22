@@ -10,5 +10,6 @@ extern const int is_debug;
 
 uint32_t get_uptime_ms(void);
 uint32_t get_timestamp_s(void);
+uint32_t get_timestamp_ms(void);
 
 #endif /* UTILS_H */

@@ -18,7 +18,7 @@ int template_full_fields[][2] =
     {TL_POST_NAT_SRC_PORT, 2},
     {TL_POST_NAT_DST_PORT, 2},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of double */
+    {TL_OBSERVATION_TIME_MS, 4} /* 8 because of double */
 };
 int template_no_ports_fields[][2] =
 {
@@ -27,7 +27,7 @@ int template_no_ports_fields[][2] =
     {TL_POST_NAT_SRC_IP, 4},
     {TL_POST_NAT_DST_IP, 4},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 8}
+    {TL_OBSERVATION_TIME_MS, 4}
 };
 
 /** Template structures.
@@ -76,6 +76,7 @@ struct template_packet
 
 struct flow_full
 {
+    uint32_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -85,7 +86,6 @@ struct flow_full
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
     uint8_t nat_event;
-    double observation_time_ms;
 };
 struct flow_packet_full
 {
@@ -105,12 +105,12 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
+    uint32_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
     uint8_t nat_event;
-    double observation_time_ms;
 };
 struct flow_packet_no_ports
 {
@@ -126,6 +126,13 @@ struct flow_packet_no_ports
 
     struct flow_no_ports flow;
     char padding[32];
+};
+
+struct send_buffer
+{
+    void *data;
+    int next;
+    size_t size;
 };
 
 struct export_settings exs;
@@ -149,6 +156,8 @@ static struct flow_packet_no_ports flow_no_ports;
 /** A buffer with pre-calculated data fields for template export.
  */
 static struct template_packet template;
+
+static struct send_buffer sendbuf;
 
 /** Initialize the settings structure.
  * TODO: This is the best place for reading settings from file.
@@ -178,11 +187,18 @@ void export_init_settings(void)
     }
 }
 
+void export_init_sendbuf(void)
+{
+    sendbuf.data = malloc(INIT_SENDBUF_SIZE);
+    sendbuf.next = 0;
+}
+
 void export_init(void)
 {
     export_init_settings();
     export_init_flow();
     export_init_template();
+    export_init_sendbuf();
 
     sem_init(&cnt_buf_empty, 0, RECORDS_MAX);
     sem_init(&cnt_buf_taken, 0, 0);
@@ -193,14 +209,14 @@ void export_init_header(void *packet)
     struct packet_header *hdr;
     hdr = (struct packet_header *) packet;
 
-    hdr->version = htons(9);
-    hdr->count = htons(1); /* A default value, the caller should ideally set it manually. */
+    hdr->version = 9;
+    hdr->count = 1; /* A default value, the caller should ideally set it manually. */
     /* Uptime and timestamp will be updated on each template sending, initialize them
      * anyway: */
-    hdr->sys_uptime = htonl(get_uptime_ms());
-    hdr->timestamp = htonl(get_timestamp_s());
-    hdr->seq_number = htonl(flow_sequence);
-    hdr->source_id = htonl(0x000000aa);
+    hdr->sys_uptime = get_uptime_ms();
+    hdr->timestamp = get_timestamp_s();
+    hdr->seq_number = flow_sequence;
+    hdr->source_id = 0x000000aa;
 }
 
 /** Initialize the flow buffer.
@@ -272,7 +288,6 @@ void export_send_record(struct nat_record *natr)
     int flags, is_full, ret;
     socklen_t addrlen;
     struct packet_header *hdr;
-    void *sendbuf;
 
     addrlen = sizeof(struct sockaddr);
     flags = 0;
@@ -285,54 +300,63 @@ void export_send_record(struct nat_record *natr)
     hdr = is_full ? (struct packet_header *) &flow_full
         : (struct packet_header *) &flow_no_ports;
     hdr->count = htons(1);
-    hdr->sys_uptime = htonl(get_uptime_ms());
-    hdr->timestamp = htonl(get_timestamp_s());
+    hdr->sys_uptime = get_uptime_ms();
+    hdr->timestamp = get_timestamp_s();
+
+    DEBUG("Sending data flow packet...");
+    pthread_mutex_lock(&mutex_socket);
+    hdr->seq_number = flow_sequence;
+    flow_sequence++;
 
     /* Fill in nat record data. */
     if (is_full)
     {
-        flow_full.flowset_id = htons(TEMPLATE_ID_FULL);
-        flow_full.flowset_len = htons(sizeof(flow_full.flowset_id) +
-                sizeof(flow_full.flowset_len) +
-                sizeof(flow_full.flow));
+        flow_full.flowset_id = TEMPLATE_ID_FULL;
+        flow_full.flowset_len = sizeof(flow_full.flowset_id) +
+            sizeof(flow_full.flowset_len) +
+            sizeof(flow_full.flow) + 4;
         flow_full.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_full.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
-        flow_full.flow.src_port = htons(natr->pre_nat_src_port);
-        flow_full.flow.dst_port = htons(natr->pre_nat_dst_port);
+        flow_full.flow.src_port = natr->pre_nat_src_port;
+        flow_full.flow.dst_port = natr->pre_nat_dst_port;
         flow_full.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_full.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
-        flow_full.flow.post_nat_src_port = htons(natr->post_nat_src_port);
-        flow_full.flow.post_nat_dst_port = htons(natr->post_nat_dst_port);
+        flow_full.flow.post_nat_src_port = natr->post_nat_src_port;
+        flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
         flow_full.flow.nat_event = natr->nat_event;
-        flow_full.flow.observation_time_ms = htonl(natr->timestamp_ms); /* XXX network byte order? */
+        flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
+        printf("flow_full.flow.observation_time_ms=%x\n", flow_full.flow.observation_time_ms);
         len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
-        sendbuf = (void *) &flow_full;
+        //sendbuf = (void *) &flow_full;
+
+        serialize_flow_full();
     }
     else
     {
-        flow_no_ports.flowset_id = htons(TEMPLATE_ID_NO_PORTS);
-        flow_no_ports.flowset_len = htons(sizeof(flow_no_ports.flowset_id) +
+        flow_no_ports.flowset_id = TEMPLATE_ID_NO_PORTS;
+        flow_no_ports.flowset_len = sizeof(flow_no_ports.flowset_id) +
                 sizeof(flow_no_ports.flowset_len) +
-                sizeof(flow_no_ports.flow));
+                sizeof(flow_no_ports.flow) + 4;
+        flow_no_ports.flowset_len += (4 - (flow_no_ports.flowset_len % 4)) % 4;
         flow_no_ports.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
         flow_no_ports.flow.nat_event = natr->nat_event;
-        flow_no_ports.flow.observation_time_ms = htonl(natr->timestamp_ms); /* network byte order? */
+        flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
         len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
-        sendbuf = (void *) &flow_no_ports;
+        //sendbuf = (void *) &flow_no_ports;
+
+        serialize_flow_no_ports();
     }
 
-    /* TODO hdr->seq_number in critical section */
-    DEBUG("Sending data flow packet...");
-    pthread_mutex_lock(&mutex_socket);
-    hdr->seq_number = htonl(flow_sequence);
-    flow_sequence++;
+    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, (struct sockaddr *)&exs.dest, addrlen);
+    /*
     if (is_full)
         ret = sendto(exs.socket_out, &flow_full, len, flags, (struct sockaddr *)&exs.dest, addrlen);
     else
         ret = sendto(exs.socket_out, &flow_no_ports, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+        */
     if (ret == -1)
         perror("sendto");
     pthread_mutex_unlock(&mutex_socket);
@@ -350,12 +374,112 @@ void export_send_template(void)
     addrlen = sizeof(struct sockaddr);
 
     pthread_mutex_lock(&mutex_socket);
+    template.version = htons(9);
+    template.count = htons(2);
+    template.source_id = htonl(0x000000aa);
     template.sys_uptime = htonl(get_uptime_ms());
     template.timestamp = htonl(get_timestamp_s());
     template.seq_number = htonl(flow_sequence);
     flow_sequence++;
     sendto(exs.socket_out, &template, len, flags, (struct sockaddr *)&exs.dest, addrlen);
     pthread_mutex_unlock(&mutex_socket);
+}
+
+void reserve_space(struct send_buffer *b, size_t bytes)
+{
+    if (b->next + bytes > b->size)
+    {
+        b->data = realloc(b->data, b->size * 2);
+        b->size *= 2;
+    }
+}
+
+void serialize_u8(uint8_t x, struct send_buffer *b, int is_order)
+{
+    int size = sizeof(uint8_t);
+    if (is_order)
+        ; /* nop */
+    reserve_space(&b, size);
+    memcpy(((char *)b->data) + b->next, &x, size);
+    b->next += size;
+}
+
+void serialize_u16(uint16_t x, struct send_buffer *b, int is_order)
+{
+    int size = sizeof(uint16_t);
+    if (is_order)
+        x = htons(x);
+    reserve_space(&b, size);
+    memcpy(((char *)b->data) + b->next, &x, size);
+    b->next += size;
+}
+
+void serialize_u32(uint32_t x, struct send_buffer *b, int is_order)
+{
+    int size = sizeof(uint32_t);
+    if (is_order)
+        x = htonl(x);
+    reserve_space(&b, size);
+    memcpy(((char *)b->data) + b->next, &x, size);
+    b->next += size;
+}
+
+void serialize_flow_full(void)
+{
+    int to_pad;
+
+    sendbuf.next = 0;
+    serialize_u16(flow_full.version, &sendbuf, 1);
+    serialize_u16(flow_full.count, &sendbuf, 1);
+    serialize_u32(flow_full.sys_uptime, &sendbuf, 1);
+    serialize_u32(flow_full.timestamp, &sendbuf, 1);
+    serialize_u32(flow_full.seq_number, &sendbuf, 1);
+    serialize_u32(flow_full.source_id, &sendbuf, 1);
+    serialize_u16(flow_full.flowset_id, &sendbuf, 1);
+    serialize_u16(flow_full.flowset_len, &sendbuf, 1);
+    serialize_u32(flow_full.flow.src_ip, &sendbuf, 0);
+    serialize_u32(flow_full.flow.dst_ip, &sendbuf, 0);
+    serialize_u16(flow_full.flow.src_port, &sendbuf, 1);
+    serialize_u16(flow_full.flow.dst_port, &sendbuf, 1);
+    serialize_u32(flow_full.flow.post_nat_src_ip, &sendbuf, 0);
+    serialize_u32(flow_full.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u16(flow_full.flow.post_nat_src_port, &sendbuf, 1);
+    serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
+    serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
+    serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
+
+    to_pad = (4 - (sendbuf.next % 4)) % 4;
+    for (int i = 0; i < to_pad + 4; i++)
+    {
+        serialize_u8(flow_full.padding[i], &sendbuf, 1);
+    }
+}
+
+void serialize_flow_no_ports(void)
+{
+    int to_pad;
+
+    sendbuf.next = 0;
+    serialize_u16(flow_no_ports.version, &sendbuf, 1);
+    serialize_u16(flow_no_ports.count, &sendbuf, 0);
+    serialize_u32(flow_no_ports.sys_uptime, &sendbuf, 1);
+    serialize_u32(flow_no_ports.timestamp, &sendbuf, 1);
+    serialize_u32(flow_no_ports.seq_number, &sendbuf, 1);
+    serialize_u32(flow_no_ports.source_id, &sendbuf, 1);
+    serialize_u16(flow_no_ports.flowset_id, &sendbuf, 1);
+    serialize_u16(flow_no_ports.flowset_len, &sendbuf, 1);
+    serialize_u32(flow_no_ports.flow.src_ip, &sendbuf, 0);
+    serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
+    serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
+    serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
+    serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
+
+    to_pad = 4 - (sendbuf.next % 4);
+    for (int i = 0; i < to_pad + 4; i++)
+    {
+        serialize_u8(flow_full.padding[i], &sendbuf, 1);
+    }
 }
 
 struct nat_record *nat_record_new(void)
