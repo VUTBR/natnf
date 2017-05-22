@@ -311,7 +311,7 @@ void export_send_record(struct nat_record *natr)
         flow_full.flowset_id = TEMPLATE_ID_FULL;
         flow_full.flowset_len = sizeof(flow_full.flowset_id) +
             sizeof(flow_full.flowset_len) +
-            sizeof(flow_full.flow);
+            sizeof(flow_full.flow) + 4;
         flow_full.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_full.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_full.flow.src_port = natr->pre_nat_src_port;
@@ -332,7 +332,7 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flowset_id = TEMPLATE_ID_NO_PORTS;
         flow_no_ports.flowset_len = sizeof(flow_no_ports.flowset_id) +
                 sizeof(flow_no_ports.flowset_len) +
-                sizeof(flow_no_ports.flow);
+                sizeof(flow_no_ports.flow) + 4;
         flow_no_ports.flowset_len += (4 - (flow_no_ports.flowset_len % 4)) % 4;
         flow_no_ports.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
@@ -346,7 +346,6 @@ void export_send_record(struct nat_record *natr)
         serialize_flow_no_ports();
     }
 
-    printf("Sendto: len=%d\n", sendbuf.next);
     ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, (struct sockaddr *)&exs.dest, addrlen);
     /*
     if (is_full)
@@ -394,42 +393,31 @@ void reserve_space(struct send_buffer *b, size_t bytes)
 void serialize_u8(uint8_t x, struct send_buffer *b, int is_order)
 {
     int size = sizeof(uint8_t);
-    puts(__func__);
-    printf("size=%d\n", size);
     if (is_order)
         ; /* nop */
     reserve_space(&b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
-    printf("next=%d\n", b->next);
 }
 
 void serialize_u16(uint16_t x, struct send_buffer *b, int is_order)
 {
     int size = sizeof(uint16_t);
-    puts(__func__);
-    printf("size=%d\n", size);
     if (is_order)
         x = htons(x);
     reserve_space(&b, size);
-    puts("1");
     memcpy(((char *)b->data) + b->next, &x, size);
-    puts("2");
     b->next += size;
-    printf("next=%d\n", b->next);
 }
 
 void serialize_u32(uint32_t x, struct send_buffer *b, int is_order)
 {
     int size = sizeof(uint32_t);
-    puts(__func__);
-    printf("size=%d\n", size);
     if (is_order)
         x = htonl(x);
     reserve_space(&b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
-    printf("next=%d\n", b->next);
 }
 
 void serialize_flow_full(void)
@@ -457,7 +445,7 @@ void serialize_flow_full(void)
     serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
-    for (int i = 0; i < to_pad; i++)
+    for (int i = 0; i < to_pad + 4; i++)
     {
         serialize_u8(flow_full.padding[i], &sendbuf, 1);
     }
@@ -484,7 +472,7 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = 4 - (sendbuf.next % 4);
-    for (int i = 0; i < to_pad; i++)
+    for (int i = 0; i < to_pad + 4; i++)
     {
         serialize_u8(flow_full.padding[i], &sendbuf, 1);
     }
