@@ -5,7 +5,7 @@
 
 const int is_debug = 1;
 
-uint32_t get_uptime_sec(void)
+uint32_t get_uptime_ms(void)
 {
     struct sysinfo info;
     int ret;
@@ -13,7 +13,7 @@ uint32_t get_uptime_sec(void)
     ret = sysinfo(&info);
     if (ret == -1)
         perror("sysinfo");
-    return info.uptime;
+    return info.uptime * 1000;
 }
 
 uint32_t get_timestamp_ms(void)

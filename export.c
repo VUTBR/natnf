@@ -194,7 +194,7 @@ void export_init_header(void *packet)
     hdr->count = htons(1); /* A default value, the caller should ideally set it manually. */
     /* Uptime and timestamp will be updated on each template sending, initialize them
      * anyway: */
-    hdr->sys_uptime = htonl(get_uptime_sec());
+    hdr->sys_uptime = htonl(get_uptime_ms());
     hdr->timestamp = htonl(get_timestamp_ms());
     hdr->seq_number = htonl(flow_sequence);
     hdr->source_id = htonl(0x000000aa);
@@ -282,7 +282,7 @@ void export_send_record(struct nat_record *natr)
     hdr = is_full ? (struct packet_header *) &flow_full
         : (struct packet_header *) &flow_no_ports;
     hdr->count = htons(1);
-    hdr->sys_uptime = htonl(get_uptime_sec());
+    hdr->sys_uptime = htonl(get_uptime_ms());
     hdr->timestamp = htonl(get_timestamp_ms());
 
     /* Fill in nat record data. */
@@ -347,7 +347,7 @@ void export_send_template(void)
     addrlen = sizeof(struct sockaddr);
 
     pthread_mutex_lock(&mutex_socket);
-    template.sys_uptime = htonl(get_uptime_sec());
+    template.sys_uptime = htonl(get_uptime_ms());
     template.timestamp = htonl(get_timestamp_ms());
     template.seq_number = htonl(flow_sequence);
     flow_sequence++;
