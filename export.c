@@ -76,6 +76,7 @@ struct template_packet
 
 struct flow_full
 {
+    double observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -85,7 +86,6 @@ struct flow_full
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
     uint8_t nat_event;
-    double observation_time_ms;
 };
 struct flow_packet_full
 {
@@ -105,12 +105,12 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
+    double observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
     uint8_t nat_event;
-    double observation_time_ms;
 };
 struct flow_packet_no_ports
 {
