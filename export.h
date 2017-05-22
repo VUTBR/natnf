@@ -40,6 +40,8 @@
 #define TL_NAT_EVENT 230
 #define TL_OBSERVATION_TIME_MS 323
 
+#define INIT_SENDBUF_SIZE 32
+
 #define member_size(type, member) sizeof(((type *)0)->member)
 
 /* Fields that identify a NAT translation. */
@@ -92,6 +94,9 @@ extern struct template_packet;
 extern struct flow_packet_full;
 extern struct flow_packet_no_ports;
 
+/* The structure for the serialized data. */
+extern struct send_buffer;
+
 extern struct export_settings exs;
 
 /** Circular buffer of nat record pointers.
@@ -114,10 +119,17 @@ void export_init_settings(void);
 void export_init(void);
 void export_init_flow(void);
 void export_init_template(void);
+void export_init_sendbuf(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
 void export_send_record(struct nat_record *natr);
 void export_send_template(void);
+void reserve_space(struct send_buffer *b, size_t bytes);
+void serialize_u8(uint8_t x, struct send_buffer *b, int is_order);
+void serialize_u16(uint16_t x, struct send_buffer *b, int is_order);
+void serialize_u32(uint32_t x, struct send_buffer *b, int is_order);
+void serialize_flow_full(void);
+void serialize_flow_no_ports(void);
 
 struct nat_record *nat_record_new(void);
 struct nat_record *nat_record_dup(struct nat_record *natr);
