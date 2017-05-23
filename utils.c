@@ -1,3 +1,12 @@
+/***********************************************/
+/*          Jakub Mackovič - xmacko00          */
+/*          Jakub Pastuszek - xpastu00         */
+/*               VUT FIT Brno                  */
+/*      Export informací o překladu adres      */
+/*               Květen 2017                   */
+/*                utils.c                      */
+/***********************************************/
+
 #include <sys/sysinfo.h>
 #include <sys/time.h>
 #include <time.h>
