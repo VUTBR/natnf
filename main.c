@@ -197,7 +197,7 @@ void thread_template(void *arg)
     }
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	int ret;
     unsigned short value;
@@ -205,7 +205,7 @@ int main(void)
     pthread_attr_t attr;
     void *statp;
 
-    export_init();
+    export_init(argc, argv);
 
 
     pthread_attr_init(&attr);

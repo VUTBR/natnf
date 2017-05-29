@@ -171,7 +171,7 @@ static struct send_buffer sendbuf;
 /** Initialize the settings structure.
  * TODO: This is the best place for reading settings from file.
  */
-void export_init_settings(void)
+void export_init_settings(int argc, char **argv)
 {
     int ret;
 
@@ -179,7 +179,7 @@ void export_init_settings(void)
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
     
-    load_config_file();
+    load_config(argc, argv);
 
     exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (exs.socket_out == -1)
@@ -202,9 +202,9 @@ void export_init_sendbuf(void)
     sendbuf.next = 0;
 }
 
-void export_init(void)
+void export_init(int argc, char **argv)
 {
-    export_init_settings();
+    export_init_settings(argc, argv);
     export_init_flow();
     export_init_template();
     export_init_sendbuf();

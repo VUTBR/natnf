@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "export.h"
 
 #define FILENAME "config.conf"
@@ -23,8 +25,15 @@
 #define COLLECTOR_PORT "COLLECTOR_PORT"
 #define TEMPLATE_TIMEOUT "TEMPLATE_TIMEOUT"
 
+extern struct export_settings exs;
+
 char * trimwhitespace(char *);
 int isValidIpAddress(char *);
-void load_config_file();
+void checkAndSetCollectorIpAddress(char *);
+void checkAndSetCollectorPort(int);
+void checkAndSetTemplateTimeout(int);
+void printHelpMessage();
+void load_config(int, char **);
+void load_config_file(char *);
 
 #endif /* CONFIG_H */

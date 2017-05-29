@@ -124,8 +124,8 @@ extern pthread_mutex_t mutex_socket;
 /* Cumulative netflow packet counter. */
 extern int flow_sequence;
 
-void export_init_settings(void);
-void export_init(void);
+void export_init_settings(int argc, char **argv);
+void export_init(int argc, char **argv);
 void export_init_flow(void);
 void export_init_template(void);
 void export_init_sendbuf(void);
