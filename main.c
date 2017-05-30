@@ -18,6 +18,7 @@
 
 #include "export.h"
 #include "utils.h"
+#include "config.h"
 
 #define EVENTS_UNLIMITED
 #define EVENTS_MAX 10
@@ -206,7 +207,6 @@ int main(int argc, char **argv)
     void *statp;
 
     export_init(argc, argv);
-
 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); 

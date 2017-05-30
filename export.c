@@ -178,8 +178,23 @@ void export_init_settings(int argc, char **argv)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
-    
+    exs.syslog_ip_str = "";
+    exs.port = 0;
+    exs.syslog_level = 4;
+    exs.daemonize = 0;
+
     load_config(argc, argv);
+
+    //msg_init(exs.syslog_level);
+
+    if (exs.daemonize)
+    {
+        if (!daemonize())
+        {
+            fprintf(stderr,"Can not daemonize proces\n");
+            exit(1);
+        }
+    }
 
     exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (exs.socket_out == -1)
