@@ -77,13 +77,22 @@ void checkAndSetTemplateTimeout(int timeout)
 void printHelpMessage()
 {
     printf("\
+######################################\n\
 # Help for natnf project\n\
 # Authors\n\
 #     Jakub Mackovič - xmacko00\n\
 #     Jakub Pastuszek - xpastu00\n\
 # VUT FIT Brno\n\
 # Export informací o překladu adres\n\
-###################################\n\
+######################################\n\
+use:\n\
+\t-h\t\thelp\n\
+\t-f\t\tconfig file name or default - config.conf\n\
+\t\t\t(if -f config is loaded from file)\n\
+\t-a\t\tcollector IP address\n\
+\t-p\t\tcollector port\n\
+\t-t\t\ttemplate timeout\n\
+######################################\n\
 ");
 }
 
@@ -186,15 +195,19 @@ void load_config_file(char *filename)
             else if ( !strcmp(var, COLLECTOR_PORT) )
             {
                 i = atoi(cfline);
-                
+                checkAndSetCollectorPort(i);
             }
             else if ( !strcmp(var, TEMPLATE_TIMEOUT) )
             {
                 i = atoi(cfline);
-
+                checkAndSetTemplateTimeout(i);
             }
         }
 
         fclose(file);
+    }
+    else
+    {
+        fprintf(stderr, "Config - File does not exist");
     }
 }

@@ -16,6 +16,10 @@ $(PROG_NAME): $(OBJS) $(HEADERS)
 run: $(PROG_NAME)
 	sudo ./$(PROG_NAME)
 
+install:
+	yum install conntrack
+	yum install libnetfilter-conntrack-dev
+
 clean:
 	@- $(RM) $(PROG_NAME)
 	@- $(RM) $(OBJS)
