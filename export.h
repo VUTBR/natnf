@@ -37,6 +37,7 @@
 /* Some template fields definitions.
  * See https://www.iana.org/assignments/ipfix/ipfix.xhtml for their meanings.
  */
+#define TL_PROTO 4
 #define TL_SRC_IP 8
 #define TL_DST_IP 12
 #define TL_POST_NAT_SRC_IP 225
@@ -140,6 +141,7 @@ void reserve_space(struct send_buffer *b, size_t bytes);
 void serialize_u8(uint8_t x, struct send_buffer *b, int is_order);
 void serialize_u16(uint16_t x, struct send_buffer *b, int is_order);
 void serialize_u32(uint32_t x, struct send_buffer *b, int is_order);
+//void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
 void serialize_flow_full(void);
 void serialize_flow_no_ports(void);
 
