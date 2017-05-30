@@ -18,6 +18,7 @@
 
 #include "export.h"
 #include "utils.h"
+#include "config.h"
 
 #define EVENTS_UNLIMITED
 #define EVENTS_MAX 10
