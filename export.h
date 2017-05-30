@@ -73,6 +73,10 @@ struct export_settings
     char *ip_str;
     int port;
     int template_timeout;
+    char *syslog_ip_str;
+    int syslog_port;
+    int syslog_level;
+    int daemonize;
     /* Outgoing connection identification: */
     int socket_out;
     struct sockaddr_in dest;

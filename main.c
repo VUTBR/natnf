@@ -207,7 +207,6 @@ int main(int argc, char **argv)
 
     export_init(argc, argv);
 
-
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); 
 
