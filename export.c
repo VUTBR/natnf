@@ -15,6 +15,7 @@
 #include "error.h"
 #include "export.h"
 #include "utils.h"
+#include "daemonize.h"
 
 int template_full_fields[][2] =
 {
@@ -169,7 +170,6 @@ static struct template_packet template;
 static struct send_buffer sendbuf;
 
 /** Initialize the settings structure.
- * TODO: This is the best place for reading settings from file.
  */
 void export_init_settings(int argc, char **argv)
 {
@@ -191,7 +191,7 @@ void export_init_settings(int argc, char **argv)
     {
         if (!daemonize())
         {
-            fprintf(stderr,"Can not daemonize proces\n");
+            fprintf(stderr,"Can not daemonize process\n");
             exit(1);
         }
     }

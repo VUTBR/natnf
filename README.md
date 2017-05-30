@@ -1,6 +1,8 @@
 # natnf
-# Authors
-#     Jakub Mackovič - xmacko00
-#     Jakub Pastuszek - xpastu00
-# VUT FIT Brno              
-# Export informací o překladu adres
+
+## Authors
+Jakub Mackovič, Jakub Pastuszek
+ VUT FIT Brno
+
+##Popis
+Export informací o překladu adres
