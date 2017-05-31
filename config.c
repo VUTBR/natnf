@@ -185,10 +185,9 @@ void load_config(int argc, char **argv)
             exs.daemonize = 1;
             break;
         default:        //any other param is wrong
-            fprintf(stderr, "Wrong parameter - use: [ -h ]\
+            error("Wrong parameter - use: [ -h ]\
  [ -c <collector-ip-address> ] [ -p <collector-port> ] [ -s <syslog-ip-address> ] [ -r <syslog-port> ]\
- [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]\n");
-            exit(1);
+ [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]");
         }
     }
 

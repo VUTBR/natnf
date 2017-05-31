@@ -183,7 +183,7 @@ void export_init_settings(int argc, char **argv)
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
     exs.syslog_ip_str = "";
-    exs.port = 0;
+    exs.syslog_port = 0;
     exs.syslog_level = 4;
     exs.daemonize = 0;
 
@@ -195,8 +195,7 @@ void export_init_settings(int argc, char **argv)
     {
         if (!daemonize())
         {
-            fprintf(stderr,"Can not daemonize process\n");
-            exit(1);
+            error("Can not daemonize process");
         }
     }
 
@@ -354,7 +353,6 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.protocol = natr->protocol;
         flow_full.flow.nat_event = natr->nat_event;
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
-        len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
         //sendbuf = (void *) &flow_full;
 
         serialize_flow_full();
@@ -373,7 +371,6 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
         flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
-        len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
         //sendbuf = (void *) &flow_no_ports;
 
         serialize_flow_no_ports();

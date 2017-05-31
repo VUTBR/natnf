@@ -46,3 +46,12 @@ uint32_t get_timestamp_ms(void)
     clock_gettime(0, &ts);
     ms = ts.tv_sec * 1000 + ts.tv_nsec / 1.0e6;
 }
+
+uint64_t get_timestamp_ns(void)
+{
+    struct timespec ts;
+    uint64_t ns;
+
+    clock_gettime(0, &ts);
+    ns = ts.tv_nsec;
+}
