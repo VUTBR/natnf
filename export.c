@@ -97,6 +97,7 @@ struct flow_full
     uint32_t post_nat_dst_ip;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_full
@@ -122,6 +123,7 @@ struct flow_no_ports
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_no_ports
@@ -349,6 +351,7 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
         flow_full.flow.post_nat_src_port = natr->post_nat_src_port;
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
+        flow_full.flow.protocol = natr->protocol;
         flow_full.flow.nat_event = natr->nat_event;
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
         len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
@@ -367,6 +370,7 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
         flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
         len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
@@ -480,6 +484,7 @@ void serialize_flow_full(void)
     serialize_u32(flow_full.flow.post_nat_dst_ip, &sendbuf, 0);
     serialize_u16(flow_full.flow.post_nat_src_port, &sendbuf, 1);
     serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
+    serialize_u8(flow_full.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
     serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
@@ -507,6 +512,7 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u8(flow_no_ports.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
     serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 

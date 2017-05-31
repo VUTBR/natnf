@@ -16,10 +16,7 @@
 #include <unistd.h>
 #include "export.h"
 
-#define FILENAME "config.conf"
 #define MAXBUF 1024
-#define DELIM "="
-#define REMARK "#"
 
 #define COLLECTOR_IP "COLLECTOR_IP"
 #define COLLECTOR_PORT "COLLECTOR_PORT"
@@ -40,7 +37,5 @@ void checkAndSetSyslogLevel(int);
 void checkAndSetTemplateTimeout(int);
 void printHelpMessage();
 void load_config(int, char **);
-void load_config_file(char *);
-int deamonize(void);
 
 #endif /* CONFIG_H */

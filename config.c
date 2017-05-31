@@ -8,6 +8,7 @@
 /***********************************************/
 
 #include "config.h"
+#include "utils.h"
 
 char * trimwhitespace(char *str)
 {
@@ -190,4 +191,19 @@ void load_config(int argc, char **argv)
             exit(1);
         }
     }
+
+    char tmp[80];
+    
+    bzero(&exs.dest, sizeof(exs.dest));
+    sprintf(tmp,"Collector:\t%s:%d",exs.ip_str,exs.port);
+    DEBUG(tmp);
+    if ( 0 != strlen(exs.syslog_ip_str) )
+    {
+        bzero(&exs.dest, sizeof(exs.dest));
+        sprintf(tmp,"Syslog:\t\t%s:%d [%d]",exs.syslog_ip_str,exs.syslog_port,exs.syslog_level);
+        DEBUG(tmp);
+    }
+    bzero(&exs.dest, sizeof(exs.dest));
+    sprintf(tmp,"Template timeout:\t%d",exs.template_timeout);
+    DEBUG(tmp);
 }

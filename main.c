@@ -85,6 +85,9 @@ void parse_nat_header(struct nat_record *natr,
     /* The following two are correctly reversed (dst and src)! */
     natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
     natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
+    natr->protocol = nfct_get_attr_u8(ct, ATTR_L4PROTO);
+    natr->icmp_type = nfct_get_attr_u8(ct, ATTR_ICMP_TYPE);
+    natr->icmp_code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
     natr->timestamp_ms = get_timestamp_ms();
     printf("timestamp_ms=%x\n", natr->timestamp_ms);
     if (type == NFCT_T_NEW)
@@ -120,6 +123,9 @@ void print_nat_header(struct nat_record *natr)
     printf(" %s", inet_ntoa(natr->post_nat_dst_ip));
     if (natr->post_nat_dst_port != 0)
         printf(":%d", natr->post_nat_dst_port);
+
+    printf(" [%d]",natr->protocol);
+    printf(" - (%d|%d)",natr->icmp_type, natr->icmp_code);
 
     printf("\n");
     fflush(stdout);

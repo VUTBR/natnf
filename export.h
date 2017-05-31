@@ -46,6 +46,8 @@
 #define TL_DST_PORT 11
 #define TL_POST_NAT_SRC_PORT 227
 #define TL_POST_NAT_DST_PORT 228
+#define TL_ICMP_TYPE 176
+#define TL_ICMP_CODE 177
 #define TL_NAT_EVENT 230
 #define TL_OBSERVATION_TIME_MS 323
 
@@ -66,6 +68,9 @@ struct nat_record
     uint16_t post_nat_dst_port;
     uint32_t timestamp_ms;
     uint8_t nat_event;
+    uint8_t protocol;
+    uint8_t icmp_type;
+    uint8_t icmp_code;
 };
 
 struct export_settings
