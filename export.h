@@ -132,6 +132,7 @@ void export_init(int argc, char **argv);
 void export_init_flow(void);
 void export_init_template(void);
 void export_init_sendbuf(void);
+void export_free_sendbuf(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
 void export_send_record(struct nat_record *natr);
@@ -142,6 +143,10 @@ void serialize_u16(uint16_t x, struct send_buffer *b, int is_order);
 void serialize_u32(uint32_t x, struct send_buffer *b, int is_order);
 void serialize_flow_full(void);
 void serialize_flow_no_ports(void);
+void sendbuf_set_u8(struct send_buffer *b, uint8_t val, int offset, int is_order);
+void sendbuf_set_u16(struct send_buffer *b, uint16_t val, int offset, int is_order);
+void sendbuf_set_u32(struct send_buffer *b, uint32_t val, int offset, int is_order);
+void sendbuf_set_u64(struct send_buffer *b, uint64_t val, int offset, int is_order);
 
 struct nat_record *nat_record_new(void);
 struct nat_record *nat_record_dup(struct nat_record *natr);
