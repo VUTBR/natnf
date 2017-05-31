@@ -17,7 +17,7 @@
 #include <pthread.h>
 
 #define COLLECTOR_IP_STR "127.0.0.1"
-#define COLLECTOR_PORT 3001
+#define COLLECTOR_PORT 9996
 
 #define RECORDS_MAX 65536
 #define _TEMPLATE_TIMEOUT 60

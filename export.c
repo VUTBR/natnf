@@ -15,6 +15,7 @@
 #include "error.h"
 #include "export.h"
 #include "utils.h"
+#include "msgs.h"
 #include "daemonize.h"
 
 int template_full_fields[][2] =
@@ -88,7 +89,7 @@ struct template_packet
 
 struct flow_full
 {
-    uint64_t observation_time_ms;
+    uint32_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -118,7 +119,7 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
-    uint64_t observation_time_ms;
+    uint32_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
@@ -183,13 +184,16 @@ void export_init_settings(int argc, char **argv)
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
     exs.syslog_ip_str = "";
-    exs.syslog_port = 0;
+    exs.syslog_port = 514;
     exs.syslog_level = 4;
     exs.daemonize = 0;
 
     load_config(argc, argv);
 
-    //msg_init(exs.syslog_level);
+    if ( strlen(exs.syslog_ip_str) )
+    {
+        msg_init(1);
+    }
 
     if (exs.daemonize)
     {
@@ -458,8 +462,8 @@ void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
     reserve_space(&b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
-}*/
-
+}
+*/
 void serialize_flow_full(void)
 {
     int to_pad;

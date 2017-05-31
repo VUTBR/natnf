@@ -19,6 +19,7 @@
 #include "export.h"
 #include "utils.h"
 #include "config.h"
+#include "msgs.h"
 
 #define EVENTS_UNLIMITED
 #define EVENTS_MAX 10
@@ -100,6 +101,9 @@ void parse_nat_header(struct nat_record *natr,
 
 void print_nat_header(struct nat_record *natr)
 {
+    char buf[MAX_STRING];
+    int cx;
+
     char *type[3] =
     {
         [0] = "UNKNOWN",
@@ -107,28 +111,65 @@ void print_nat_header(struct nat_record *natr)
         [2] = "DELETE"
     };
 
-    printf("[%s]", type[natr->nat_event]);
-    printf(" %s", inet_ntoa(natr->pre_nat_src_ip));
-    if (natr->pre_nat_src_port != 0)
-        printf(":%d", natr->pre_nat_src_port);
-    printf(" %s", inet_ntoa(natr->pre_nat_dst_ip));
-    if (natr->pre_nat_dst_port != 0)
-        printf(":%d", natr->pre_nat_dst_port);
+    int full = (natr->pre_nat_src_port != 0 &&
+            natr->pre_nat_dst_port != 0 &&
+            natr->post_nat_src_port != 0 &&
+            natr->post_nat_dst_port != 0);
 
-    printf(" <--> ");
+    if (full)
+    {
+        msg("NAT_EVENT=%s, SRC_IP=%s, SRC_PORT=%d, POST_NAT_SRC_IP=%s, POST_NAT_SRC_PORT=%d\
+ DST_IP=%s, DST_PORT=%d, POST_NAT_DST_IP=%s, POST_NAT_DST_PORT=%d, PROTOCOL=%d",
+                type[natr->nat_event],
+                inet_ntoa(natr->pre_nat_src_ip),
+                natr->pre_nat_src_port,
+                inet_ntoa(natr->post_nat_src_ip),
+                natr->post_nat_src_port,
+                inet_ntoa(natr->pre_nat_dst_ip),
+                natr->pre_nat_dst_port,
+                inet_ntoa(natr->post_nat_dst_ip),
+                natr->post_nat_dst_port,
+                natr->protocol
+            );
+    }
+    else
+    {
+        msg("NAT_EVENT=%s, SRC_IP=%s, POST_NAT_SRC_IP=%s, DST_IP=%s, POST_NAT_DST_IP=%s,\
+ PROTOCOL=%d, ICMP_TYPE=%d, ICMP_CODE=%d",
+                type[natr->nat_event],
+                inet_ntoa(natr->pre_nat_src_ip),
+                inet_ntoa(natr->post_nat_src_ip),
+                inet_ntoa(natr->pre_nat_dst_ip),
+                inet_ntoa(natr->post_nat_dst_ip),
+                natr->protocol,
+                natr->icmp_type,
+                natr->icmp_code
+            );
+    }
 
-    printf("%s", inet_ntoa(natr->post_nat_src_ip));
-    if (natr->post_nat_src_port != 0)
-        printf(":%d", natr->post_nat_src_port);
-    printf(" %s", inet_ntoa(natr->post_nat_dst_ip));
-    if (natr->post_nat_dst_port != 0)
-        printf(":%d", natr->post_nat_dst_port);
+    if (is_debug)
+    {
+        cx = snprintf(buf, MAX_STRING - 1,"[%s] %s", type[natr->nat_event], inet_ntoa(natr->pre_nat_src_ip));
+        
+        if (natr->pre_nat_src_port != 0)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->pre_nat_src_port);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx," %s", inet_ntoa(natr->pre_nat_dst_ip));
+        if (natr->pre_nat_dst_port != 0)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->pre_nat_dst_port);
 
-    printf(" [%d]",natr->protocol);
-    printf(" - (%d|%d)",natr->icmp_type, natr->icmp_code);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx," <--> ");
 
-    printf("\n");
-    fflush(stdout);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,"%s", inet_ntoa(natr->post_nat_src_ip));
+        if (natr->post_nat_src_port != 0)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->post_nat_src_port);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx," %s", inet_ntoa(natr->post_nat_dst_ip));
+        if (natr->post_nat_dst_port != 0)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->post_nat_dst_port);
+
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx," [%d] - (%d|%d)",natr->protocol, natr->icmp_type, natr->icmp_code);
+    
+        DEBUG(buf);
+    }
 }
 
 /** Callback for the thread which catches NAT events and creates
