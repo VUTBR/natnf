@@ -28,7 +28,7 @@ int template_full_fields[][2] =
     {TL_POST_NAT_SRC_PORT, 2},
     {TL_POST_NAT_DST_PORT, 2},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 4} /* 8 because of double */
+    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of time_t's size on 64-bit systems. */
 };
 int template_no_ports_fields[][2] =
 {
@@ -37,7 +37,7 @@ int template_no_ports_fields[][2] =
     {TL_POST_NAT_SRC_IP, 4},
     {TL_POST_NAT_DST_IP, 4},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 4}
+    {TL_OBSERVATION_TIME_MS, 8}
 };
 
 /** Template structures.
@@ -86,7 +86,7 @@ struct template_packet
 
 struct flow_full
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -115,7 +115,7 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
@@ -455,6 +455,16 @@ void serialize_u32(uint32_t x, struct send_buffer *b, int is_order)
     b->next += size;
 }
 
+void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
+{
+    int size = sizeof(uint64_t);
+    if (is_order)
+        ;
+    reserve_space(b, size);
+    memcpy(((char *)b->data) + b->next, &x, size);
+    b->next += size;
+}
+
 void serialize_flow_full(void)
 {
     int to_pad;
@@ -476,7 +486,7 @@ void serialize_flow_full(void)
     serialize_u16(flow_full.flow.post_nat_src_port, &sendbuf, 1);
     serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad + 4; i++)
@@ -505,7 +515,7 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad; i++)

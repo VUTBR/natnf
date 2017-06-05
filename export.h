@@ -63,7 +63,7 @@ struct nat_record
     uint16_t pre_nat_dst_port;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
-    uint32_t timestamp_ms;
+    uint64_t timestamp_ms;
     uint8_t nat_event;
 };
 
@@ -141,6 +141,7 @@ void reserve_space(struct send_buffer *b, size_t bytes);
 void serialize_u8(uint8_t x, struct send_buffer *b, int is_order);
 void serialize_u16(uint16_t x, struct send_buffer *b, int is_order);
 void serialize_u32(uint32_t x, struct send_buffer *b, int is_order);
+void serialize_u64(uint64_t x, struct send_buffer *b, int is_order);
 void serialize_flow_full(void);
 void serialize_flow_no_ports(void);
 void sendbuf_set_u8(struct send_buffer *b, uint8_t val, int offset, int is_order);
