@@ -17,7 +17,7 @@
 #include <pthread.h>
 
 #define COLLECTOR_IP_STR "127.0.0.1"
-#define COLLECTOR_PORT 3001
+#define COLLECTOR_PORT 9996
 
 #define RECORDS_MAX 65536
 #define _TEMPLATE_TIMEOUT 60
@@ -37,6 +37,7 @@
 /* Some template fields definitions.
  * See https://www.iana.org/assignments/ipfix/ipfix.xhtml for their meanings.
  */
+#define TL_PROTO 4
 #define TL_SRC_IP 8
 #define TL_DST_IP 12
 #define TL_POST_NAT_SRC_IP 225
@@ -45,6 +46,9 @@
 #define TL_DST_PORT 11
 #define TL_POST_NAT_SRC_PORT 227
 #define TL_POST_NAT_DST_PORT 228
+#define TL_ICMP_TYPE 176
+#define TL_ICMP_CODE 177
+#define TL_ICMP_TYPE_CODE 32
 #define TL_NAT_EVENT 230
 #define TL_OBSERVATION_TIME_MS 323
 
@@ -63,8 +67,11 @@ struct nat_record
     uint16_t pre_nat_dst_port;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
-    uint32_t timestamp_ms;
+    uint64_t timestamp_ms;
     uint8_t nat_event;
+    uint8_t protocol;
+    uint8_t icmp_type;
+    uint8_t icmp_code;
 };
 
 struct export_settings
@@ -141,6 +148,7 @@ void reserve_space(struct send_buffer *b, size_t bytes);
 void serialize_u8(uint8_t x, struct send_buffer *b, int is_order);
 void serialize_u16(uint16_t x, struct send_buffer *b, int is_order);
 void serialize_u32(uint32_t x, struct send_buffer *b, int is_order);
+void serialize_u64(uint64_t x, struct send_buffer *b, int is_order);
 void serialize_flow_full(void);
 void serialize_flow_no_ports(void);
 void sendbuf_set_u8(struct send_buffer *b, uint8_t val, int offset, int is_order);

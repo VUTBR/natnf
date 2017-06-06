@@ -38,11 +38,12 @@ uint32_t get_timestamp_s(void)
     return tv.tv_sec;
 }
 
-uint32_t get_timestamp_ms(void)
+uint64_t get_timestamp_ms(void)
 {
     struct timespec ts;
-    uint32_t ms;
+    uint64_t ms;
 
     clock_gettime(0, &ts);
     ms = ts.tv_sec * 1000 + ts.tv_nsec / 1.0e6;
+    return ms;
 }

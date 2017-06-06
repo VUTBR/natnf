@@ -11,10 +11,12 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <pthread.h>
+#include <byteswap.h>
 
 #include "error.h"
 #include "export.h"
 #include "utils.h"
+#include "msgs.h"
 #include "daemonize.h"
 
 int template_full_fields[][2] =
@@ -27,8 +29,9 @@ int template_full_fields[][2] =
     {TL_POST_NAT_DST_IP, 4},
     {TL_POST_NAT_SRC_PORT, 2},
     {TL_POST_NAT_DST_PORT, 2},
+    {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 4} /* 8 because of double */
+    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of time_t's size on 64-bit systems. */
 };
 int template_no_ports_fields[][2] =
 {
@@ -36,8 +39,11 @@ int template_no_ports_fields[][2] =
     {TL_DST_IP, 4},
     {TL_POST_NAT_SRC_IP, 4},
     {TL_POST_NAT_DST_IP, 4},
+    {TL_ICMP_TYPE, 1},
+    {TL_ICMP_CODE, 1},
+    {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 4}
+    {TL_OBSERVATION_TIME_MS, 8}
 };
 
 /** Template structures.
@@ -86,7 +92,7 @@ struct template_packet
 
 struct flow_full
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -95,6 +101,7 @@ struct flow_full
     uint32_t post_nat_dst_ip;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_full
@@ -115,11 +122,14 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
+    uint16_t icmp_type;
+    uint16_t icmp_code;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_no_ports
@@ -179,20 +189,22 @@ void export_init_settings(int argc, char **argv)
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
     exs.syslog_ip_str = "";
-    exs.port = 0;
+    exs.syslog_port = 514;
     exs.syslog_level = 4;
     exs.daemonize = 0;
 
     load_config(argc, argv);
 
-    //msg_init(exs.syslog_level);
+    if ( strlen(exs.syslog_ip_str) )
+    {
+        msg_init(1);
+    }
 
     if (exs.daemonize)
     {
         if (!daemonize())
         {
-            fprintf(stderr,"Can not daemonize process\n");
-            exit(1);
+            error("Can not daemonize process");
         }
     }
 
@@ -354,9 +366,9 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
         flow_full.flow.post_nat_src_port = natr->post_nat_src_port;
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
+        flow_full.flow.protocol = natr->protocol;
         flow_full.flow.nat_event = natr->nat_event;
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
-        len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
         //sendbuf = (void *) &flow_full;
 
         serialize_flow_full();
@@ -372,9 +384,11 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_no_ports.flow.icmp_type = natr->icmp_type;
+        flow_no_ports.flow.icmp_code = natr->icmp_code;
+        flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
         flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
-        len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
         //sendbuf = (void *) &flow_no_ports;
 
         serialize_flow_no_ports();
@@ -455,6 +469,16 @@ void serialize_u32(uint32_t x, struct send_buffer *b, int is_order)
     b->next += size;
 }
 
+void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
+{
+    int size = sizeof(uint64_t);
+    if (is_order)
+        x = bswap_64(x);
+    reserve_space(b, size);
+    memcpy(((char *)b->data) + b->next, &x, size);
+    b->next += size;
+}
+
 void serialize_flow_full(void)
 {
     int to_pad;
@@ -475,8 +499,9 @@ void serialize_flow_full(void)
     serialize_u32(flow_full.flow.post_nat_dst_ip, &sendbuf, 0);
     serialize_u16(flow_full.flow.post_nat_src_port, &sendbuf, 1);
     serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
+    serialize_u8(flow_full.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad + 4; i++)
@@ -504,8 +529,11 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u8(flow_no_ports.flow.icmp_type, &sendbuf, 1);
+    serialize_u8(flow_no_ports.flow.icmp_code, &sendbuf, 1);
+    serialize_u8(flow_no_ports.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad; i++)
@@ -545,7 +573,7 @@ void sendbuf_set_u32(struct send_buffer *b, uint32_t val, int offset, int is_ord
 void sendbuf_set_u64(struct send_buffer *b, uint64_t val, int offset, int is_order)
 {
     if (is_order)
-        ;/* TODO */
+        val = bswap_64(val);
     memcpy(((char *)b->data) + offset, &val, sizeof(val));
 }
 

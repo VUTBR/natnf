@@ -8,6 +8,7 @@
 /***********************************************/
 
 #include "config.h"
+#include "utils.h"
 
 char * trimwhitespace(char *str)
 {
@@ -184,10 +185,24 @@ void load_config(int argc, char **argv)
             exs.daemonize = 1;
             break;
         default:        //any other param is wrong
-            fprintf(stderr, "Wrong parameter - use: [ -h ]\
+            error("Wrong parameter - use: [ -h ]\
  [ -c <collector-ip-address> ] [ -p <collector-port> ] [ -s <syslog-ip-address> ] [ -r <syslog-port> ]\
- [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]\n");
-            exit(1);
+ [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]");
         }
     }
+
+    char tmp[80];
+    
+    bzero(&exs.dest, sizeof(exs.dest));
+    sprintf(tmp,"Collector:\t%s:%d",exs.ip_str,exs.port);
+    DEBUG(tmp);
+    if ( 0 != strlen(exs.syslog_ip_str) )
+    {
+        bzero(&exs.dest, sizeof(exs.dest));
+        sprintf(tmp,"Syslog:\t\t%s:%d [%d]",exs.syslog_ip_str,exs.syslog_port,exs.syslog_level);
+        DEBUG(tmp);
+    }
+    bzero(&exs.dest, sizeof(exs.dest));
+    sprintf(tmp,"Template timeout:\t%d",exs.template_timeout);
+    DEBUG(tmp);
 }
