@@ -39,6 +39,8 @@ int template_no_ports_fields[][2] =
     {TL_DST_IP, 4},
     {TL_POST_NAT_SRC_IP, 4},
     {TL_POST_NAT_DST_IP, 4},
+    {TL_ICMP_TYPE, 1},
+    {TL_ICMP_CODE, 1},
     {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
     {TL_OBSERVATION_TIME_MS, 8}
@@ -125,6 +127,8 @@ struct flow_no_ports
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
+    uint16_t icmp_type;
+    uint16_t icmp_code;
     uint8_t protocol;
     uint8_t nat_event;
 };
@@ -380,6 +384,8 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_no_ports.flow.icmp_type = natr->icmp_type;
+        flow_no_ports.flow.icmp_code = natr->icmp_code;
         flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
         flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
@@ -523,6 +529,8 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u8(flow_no_ports.flow.icmp_type, &sendbuf, 1);
+    serialize_u8(flow_no_ports.flow.icmp_code, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
     serialize_u64(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
