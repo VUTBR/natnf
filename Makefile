@@ -14,7 +14,7 @@ $(PROG_NAME): $(OBJS) $(HEADERS)
 	$(LINK.c) $(OBJS) -o $(PROG_NAME) -L/usr/lib/x86_64-linux-gnu/ -lnetfilter_conntrack -lpthread
 
 run: $(PROG_NAME)
-	sudo ./$(PROG_NAME)
+	sudo ./$(PROG_NAME) -c 127.0.0.1 -p 3001
 
 install:
 	yum install conntrack

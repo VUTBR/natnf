@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <pthread.h>
+#include <byteswap.h>
 
 #include "error.h"
 #include "export.h"
@@ -30,7 +31,7 @@ int template_full_fields[][2] =
     {TL_POST_NAT_DST_PORT, 2},
     {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
-    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of double */
+    {TL_OBSERVATION_TIME_MS, 8} /* 8 because of time_t's size on 64-bit systems. */
 };
 int template_no_ports_fields[][2] =
 {
@@ -89,7 +90,7 @@ struct template_packet
 
 struct flow_full
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint16_t src_port;
@@ -119,7 +120,7 @@ struct flow_packet_full
 
 struct flow_no_ports
 {
-    uint32_t observation_time_ms;
+    uint64_t observation_time_ms;
     uint32_t src_ip;
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
@@ -221,7 +222,13 @@ void export_init_settings(int argc, char **argv)
 void export_init_sendbuf(void)
 {
     sendbuf.data = malloc(INIT_SENDBUF_SIZE);
+    sendbuf.size = INIT_SENDBUF_SIZE;
     sendbuf.next = 0;
+}
+
+void export_free_sendbuf(void)
+{
+    free(sendbuf.data);
 }
 
 void export_init(int argc, char **argv)
@@ -229,7 +236,6 @@ void export_init(int argc, char **argv)
     export_init_settings(argc, argv);
     export_init_flow();
     export_init_template();
-    export_init_sendbuf();
 
     sem_init(&cnt_buf_empty, 0, RECORDS_MAX);
     sem_init(&cnt_buf_taken, 0, 0);
@@ -327,6 +333,8 @@ void export_send_record(struct nat_record *natr)
             natr->post_nat_src_port != 0 &&
             natr->post_nat_dst_port != 0);
 
+    export_init_sendbuf();
+
     /* Fill in header values. */
     hdr = is_full ? (struct packet_header *) &flow_full
         : (struct packet_header *) &flow_no_ports;
@@ -390,6 +398,7 @@ void export_send_record(struct nat_record *natr)
     if (ret == -1)
         perror("sendto");
     pthread_mutex_unlock(&mutex_socket);
+    export_free_sendbuf();
     DEBUG("Data flow packet sent.");
 }
 
@@ -429,7 +438,7 @@ void serialize_u8(uint8_t x, struct send_buffer *b, int is_order)
     int size = sizeof(uint8_t);
     if (is_order)
         ; /* nop */
-    reserve_space(&b, size);
+    reserve_space(b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
 }
@@ -439,7 +448,7 @@ void serialize_u16(uint16_t x, struct send_buffer *b, int is_order)
     int size = sizeof(uint16_t);
     if (is_order)
         x = htons(x);
-    reserve_space(&b, size);
+    reserve_space(b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
 }
@@ -449,26 +458,25 @@ void serialize_u32(uint32_t x, struct send_buffer *b, int is_order)
     int size = sizeof(uint32_t);
     if (is_order)
         x = htonl(x);
-    reserve_space(&b, size);
+    reserve_space(b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
 }
-/*
+
 void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
 {
     int size = sizeof(uint64_t);
     if (is_order)
-        ;
-    reserve_space(&b, size);
+        x = bswap_64(x);
+    reserve_space(b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
 }
-*/
+
 void serialize_flow_full(void)
 {
     int to_pad;
 
-    sendbuf.next = 0;
     serialize_u16(flow_full.version, &sendbuf, 1);
     serialize_u16(flow_full.count, &sendbuf, 1);
     serialize_u32(flow_full.sys_uptime, &sendbuf, 1);
@@ -487,7 +495,7 @@ void serialize_flow_full(void)
     serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
     serialize_u8(flow_full.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_full.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad + 4; i++)
@@ -499,15 +507,17 @@ void serialize_flow_full(void)
 void serialize_flow_no_ports(void)
 {
     int to_pad;
+    int flowset_len_offset, offset_start;
 
-    sendbuf.next = 0;
     serialize_u16(flow_no_ports.version, &sendbuf, 1);
     serialize_u16(flow_no_ports.count, &sendbuf, 0);
     serialize_u32(flow_no_ports.sys_uptime, &sendbuf, 1);
     serialize_u32(flow_no_ports.timestamp, &sendbuf, 1);
     serialize_u32(flow_no_ports.seq_number, &sendbuf, 1);
     serialize_u32(flow_no_ports.source_id, &sendbuf, 1);
+    offset_start = sendbuf.next;
     serialize_u16(flow_no_ports.flowset_id, &sendbuf, 1);
+    flowset_len_offset = sendbuf.next;
     serialize_u16(flow_no_ports.flowset_len, &sendbuf, 1);
     serialize_u32(flow_no_ports.flow.src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
@@ -515,13 +525,48 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
     serialize_u8(flow_no_ports.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
-    serialize_u32(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
+    serialize_u64(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 
-    to_pad = 4 - (sendbuf.next % 4);
-    for (int i = 0; i < to_pad + 4; i++)
+    to_pad = (4 - (sendbuf.next % 4)) % 4;
+    for (int i = 0; i < to_pad; i++)
     {
         serialize_u8(flow_full.padding[i], &sendbuf, 1);
     }
+    printf("sendbuf.next=%d, offset_start=%d, flowset_len_offset=%d\n",
+            sendbuf.next, offset_start, flowset_len_offset);
+    printf("len=%d, offset=%d\n", sendbuf.next - offset_start, flowset_len_offset);
+    /* Set length of the flowset retrospectively. */
+    sendbuf_set_u16(&sendbuf, sendbuf.next - offset_start, flowset_len_offset, 1);
+}
+
+/** Set value of buffer at offset to val.
+ */
+void sendbuf_set_u8(struct send_buffer *b, uint8_t val, int offset, int is_order)
+{
+    if (is_order)
+        ;
+    memcpy(((char *)b->data) + offset, &val, sizeof(val));
+}
+
+void sendbuf_set_u16(struct send_buffer *b, uint16_t val, int offset, int is_order)
+{
+    if (is_order)
+        val = htons(val);
+    memcpy(((char *)b->data) + offset, &val, sizeof(val));
+}
+
+void sendbuf_set_u32(struct send_buffer *b, uint32_t val, int offset, int is_order)
+{
+    if (is_order)
+        val = htonl(val);
+    memcpy(((char *)b->data) + offset, &val, sizeof(val));
+}
+
+void sendbuf_set_u64(struct send_buffer *b, uint64_t val, int offset, int is_order)
+{
+    if (is_order)
+        ;/* TODO */
+    memcpy(((char *)b->data) + offset, &val, sizeof(val));
 }
 
 struct nat_record *nat_record_new(void)
