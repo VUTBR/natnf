@@ -12,6 +12,8 @@
 #include <time.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <netinet/in.h>
+
 #include "utils.h"
 
 const int is_debug = 1;
@@ -46,4 +48,21 @@ uint64_t get_timestamp_ms(void)
     clock_gettime(0, &ts);
     ms = ts.tv_sec * 1000 + ts.tv_nsec / 1.0e6;
     return ms;
+}
+
+/** True if the L4 protocol proto does not use port numbers.
+ * TODO: Add other protocols from <netinet/in.h> if necessary.
+ * Right now used to distinguish ICMP from any other protocol.
+ */
+int is_protocol_portless(uint8_t proto)
+{
+    switch (proto)
+    {
+        case IPPROTO_ICMP:
+            return 1;
+        case IPPROTO_TCP:
+        case IPPROTO_UDP:
+        default:
+            return 0;
+    }
 }

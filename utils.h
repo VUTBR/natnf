@@ -20,5 +20,6 @@ extern const int is_debug;
 uint32_t get_uptime_ms(void);
 uint32_t get_timestamp_s(void);
 uint64_t get_timestamp_ms(void);
+int is_protocol_portless(uint8_t proto);
 
 #endif /* UTILS_H */

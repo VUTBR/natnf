@@ -331,11 +331,7 @@ void export_send_record(struct nat_record *natr)
 
     addrlen = sizeof(struct sockaddr);
     flags = 0;
-    is_full = (natr->pre_nat_src_port != 0 &&
-            natr->pre_nat_dst_port != 0 &&
-            natr->post_nat_src_port != 0 &&
-            natr->post_nat_dst_port != 0);
-
+    is_full = !is_protocol_portless(natr->protocol);
     export_init_sendbuf();
 
     /* Fill in header values. */

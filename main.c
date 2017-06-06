@@ -15,6 +15,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <netinet/in.h>
 
 #include "export.h"
 #include "utils.h"
@@ -76,20 +77,34 @@ void parse_nat_header(struct nat_record *natr,
         return;
     }
 
+    natr->timestamp_ms = get_timestamp_ms();
     natr->pre_nat_src_ip.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
     natr->pre_nat_dst_ip.s_addr = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_DST);
     /* The following two are correctly reversed (dst and src)! */
     natr->post_nat_src_ip.s_addr = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST);
     natr->post_nat_dst_ip.s_addr = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
-    natr->pre_nat_src_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC);
-    natr->pre_nat_dst_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST);
-    /* The following two are correctly reversed (dst and src)! */
-    natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
-    natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
     natr->protocol = nfct_get_attr_u8(ct, ATTR_L4PROTO);
-    natr->icmp_type = nfct_get_attr_u8(ct, ATTR_ICMP_TYPE);
-    natr->icmp_code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
-    natr->timestamp_ms = get_timestamp_ms();
+    if (natr->protocol == IPPROTO_ICMP)
+    {
+        natr->icmp_type = nfct_get_attr_u8(ct, ATTR_ICMP_TYPE);
+        natr->icmp_code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
+        /* Insert the ICMP type and code into port values.
+         * The upper 8 bits out of 16 contain the type and the lower 8 contain
+         * the code. */
+        natr->pre_nat_src_port = (natr->icmp_type << 8) | (natr->icmp_code);
+        natr->pre_nat_dst_port = (natr->icmp_type << 8) | (natr->icmp_code);
+        natr->post_nat_src_port = (natr->icmp_type << 8) | (natr->icmp_code);
+        natr->post_nat_dst_port = (natr->icmp_type << 8) | (natr->icmp_code);
+    }
+    else
+    {
+        /* Not ICMP */
+        natr->pre_nat_src_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC);
+        natr->pre_nat_dst_port = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST);
+        /* The following two are correctly reversed (dst and src)! */
+        natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
+        natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
+    }
     printf("timestamp_ms=%llx\n", natr->timestamp_ms);
     if (type == NFCT_T_NEW)
         natr->nat_event = NAT_CREATE;
@@ -111,12 +126,9 @@ void print_nat_header(struct nat_record *natr)
         [2] = "DELETE"
     };
 
-    int full = (natr->pre_nat_src_port != 0 &&
-            natr->pre_nat_dst_port != 0 &&
-            natr->post_nat_src_port != 0 &&
-            natr->post_nat_dst_port != 0);
+    int is_full = !is_protocol_portless(natr->protocol);
 
-    if (full)
+    if (is_full)
     {
         msg("NAT_EVENT=%s, SRC_IP=%s, SRC_PORT=%d, POST_NAT_SRC_IP=%s, POST_NAT_SRC_PORT=%d\
  DST_IP=%s, DST_PORT=%d, POST_NAT_DST_IP=%s, POST_NAT_DST_PORT=%d, PROTOCOL=%d",
@@ -134,6 +146,7 @@ void print_nat_header(struct nat_record *natr)
     }
     else
     {
+        /* TODO Why are the ip addresses the same? */
         msg("NAT_EVENT=%s, SRC_IP=%s, POST_NAT_SRC_IP=%s, DST_IP=%s, POST_NAT_DST_IP=%s,\
  PROTOCOL=%d, ICMP_TYPE=%d, ICMP_CODE=%d",
                 type[natr->nat_event],
@@ -147,26 +160,30 @@ void print_nat_header(struct nat_record *natr)
             );
     }
 
+    /* Print some debugging info about the nat record. */
     if (is_debug)
     {
         cx = snprintf(buf, MAX_STRING - 1,"[%s] %s", type[natr->nat_event], inet_ntoa(natr->pre_nat_src_ip));
         
-        if (natr->pre_nat_src_port != 0)
+        if (is_full)
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->pre_nat_src_port);
         cx += snprintf(buf+cx, MAX_STRING - 1 - cx," %s", inet_ntoa(natr->pre_nat_dst_ip));
-        if (natr->pre_nat_dst_port != 0)
+        if (is_full)
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->pre_nat_dst_port);
 
         cx += snprintf(buf+cx, MAX_STRING - 1 - cx," <--> ");
 
         cx += snprintf(buf+cx, MAX_STRING - 1 - cx,"%s", inet_ntoa(natr->post_nat_src_ip));
-        if (natr->post_nat_src_port != 0)
+        if (is_full)
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->post_nat_src_port);
         cx += snprintf(buf+cx, MAX_STRING - 1 - cx," %s", inet_ntoa(natr->post_nat_dst_ip));
-        if (natr->post_nat_dst_port != 0)
+        if (is_full)
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->post_nat_dst_port);
 
-        cx += snprintf(buf+cx, MAX_STRING - 1 - cx," [%d] - (%d|%d)",natr->protocol, natr->icmp_type, natr->icmp_code);
+        if (natr->protocol == IPPROTO_ICMP)
+        {
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx," [%d] - (%d|%d)",natr->protocol, natr->icmp_type, natr->icmp_code);
+        }
     
         DEBUG(buf);
     }
