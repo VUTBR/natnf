@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <pthread.h>
+#include <byteswap.h>
 
 #include "error.h"
 #include "export.h"
@@ -459,7 +460,7 @@ void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
 {
     int size = sizeof(uint64_t);
     if (is_order)
-        ;
+        x = bswap_64(x);
     reserve_space(b, size);
     memcpy(((char *)b->data) + b->next, &x, size);
     b->next += size;
