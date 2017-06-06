@@ -16,6 +16,7 @@
 #include "error.h"
 #include "export.h"
 #include "utils.h"
+#include "msgs.h"
 #include "daemonize.h"
 
 int template_full_fields[][2] =
@@ -28,6 +29,7 @@ int template_full_fields[][2] =
     {TL_POST_NAT_DST_IP, 4},
     {TL_POST_NAT_SRC_PORT, 2},
     {TL_POST_NAT_DST_PORT, 2},
+    {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
     {TL_OBSERVATION_TIME_MS, 8} /* 8 because of time_t's size on 64-bit systems. */
 };
@@ -37,6 +39,7 @@ int template_no_ports_fields[][2] =
     {TL_DST_IP, 4},
     {TL_POST_NAT_SRC_IP, 4},
     {TL_POST_NAT_DST_IP, 4},
+    {TL_PROTO, 1},
     {TL_NAT_EVENT, 1},
     {TL_OBSERVATION_TIME_MS, 8}
 };
@@ -96,6 +99,7 @@ struct flow_full
     uint32_t post_nat_dst_ip;
     uint16_t post_nat_src_port;
     uint16_t post_nat_dst_port;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_full
@@ -121,6 +125,7 @@ struct flow_no_ports
     uint32_t dst_ip;
     uint32_t post_nat_src_ip;
     uint32_t post_nat_dst_ip;
+    uint8_t protocol;
     uint8_t nat_event;
 };
 struct flow_packet_no_ports
@@ -180,20 +185,22 @@ void export_init_settings(int argc, char **argv)
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
     exs.syslog_ip_str = "";
-    exs.port = 0;
+    exs.syslog_port = 514;
     exs.syslog_level = 4;
     exs.daemonize = 0;
 
     load_config(argc, argv);
 
-    //msg_init(exs.syslog_level);
+    if ( strlen(exs.syslog_ip_str) )
+    {
+        msg_init(1);
+    }
 
     if (exs.daemonize)
     {
         if (!daemonize())
         {
-            fprintf(stderr,"Can not daemonize process\n");
-            exit(1);
+            error("Can not daemonize process");
         }
     }
 
@@ -355,9 +362,9 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
         flow_full.flow.post_nat_src_port = natr->post_nat_src_port;
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
+        flow_full.flow.protocol = natr->protocol;
         flow_full.flow.nat_event = natr->nat_event;
         flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
-        len = (sizeof(flow_full) - 32) + 32 - ((sizeof(flow_full) - 32) % 32);
         //sendbuf = (void *) &flow_full;
 
         serialize_flow_full();
@@ -373,9 +380,9 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_no_ports.flow.post_nat_src_ip = natr->post_nat_src_ip.s_addr;
         flow_no_ports.flow.post_nat_dst_ip = natr->post_nat_dst_ip.s_addr;
+        flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
         flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
-        len = (sizeof(flow_no_ports) - 32) + 32 - ((sizeof(flow_no_ports) - 32) % 32);
         //sendbuf = (void *) &flow_no_ports;
 
         serialize_flow_no_ports();
@@ -486,6 +493,7 @@ void serialize_flow_full(void)
     serialize_u32(flow_full.flow.post_nat_dst_ip, &sendbuf, 0);
     serialize_u16(flow_full.flow.post_nat_src_port, &sendbuf, 1);
     serialize_u16(flow_full.flow.post_nat_dst_port, &sendbuf, 1);
+    serialize_u8(flow_full.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
     serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
@@ -515,6 +523,7 @@ void serialize_flow_no_ports(void)
     serialize_u32(flow_no_ports.flow.dst_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_src_ip, &sendbuf, 0);
     serialize_u32(flow_no_ports.flow.post_nat_dst_ip, &sendbuf, 0);
+    serialize_u8(flow_no_ports.flow.protocol, &sendbuf, 1);
     serialize_u8(flow_no_ports.flow.nat_event, &sendbuf, 1);
     serialize_u64(flow_no_ports.flow.observation_time_ms, &sendbuf, 1);
 
