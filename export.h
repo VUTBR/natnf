@@ -21,6 +21,7 @@
 
 #define RECORDS_MAX 65536
 #define _TEMPLATE_TIMEOUT 60
+#define _EXPORT_TIMEOUT 10
 
 #define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
 #define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
@@ -79,8 +80,8 @@ struct export_settings
     char *ip_str;
     int port;
     int template_timeout;
-    char *syslog_ip_str;
-    int syslog_port;
+    int export_timeout;
+    int syslog_enable;
     int syslog_level;
     int daemonize;
     /* Outgoing connection identification: */

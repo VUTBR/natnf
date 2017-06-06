@@ -188,16 +188,15 @@ void export_init_settings(int argc, char **argv)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = _TEMPLATE_TIMEOUT;
-    exs.syslog_ip_str = "";
-    exs.syslog_port = 514;
+    exs.syslog_enable = 0;
     exs.syslog_level = 4;
     exs.daemonize = 0;
 
     load_config(argc, argv);
 
-    if ( strlen(exs.syslog_ip_str) )
+    if (exs.syslog_enable)
     {
-        msg_init(1);
+        msg_init(1);    // 1 for debug
     }
 
     if (exs.daemonize)

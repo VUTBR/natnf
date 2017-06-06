@@ -63,32 +63,6 @@ void checkAndSetCollectorPort(int port)
     }
 }
 
-void checkAndSetSyslogIpAddress(char *address)
-{
-    if ( isValidIpAddress(address) )
-    {
-        //reallocate ip_str to appropriate size
-        exs.syslog_ip_str = (char *)malloc(sizeof(char) * strlen(address));
-        strncpy(exs.syslog_ip_str, address, strlen(address));
-    }
-    else
-    {
-        fprintf(stderr,"Config - Syslog IP address invalid\n");
-    }
-}
-
-void checkAndSetSyslogPort(int port)
-{
-    if ( port < 65536 && port > 0 )
-    {
-        exs.syslog_port = port;
-    }
-    else
-    {
-        fprintf(stderr,"Config - Syslog port invalid\n");
-    }
-}
-
 void checkAndSetSyslogLevel(int level)
 {
     if ( level < 5 && level > 0 )   //could it be checked to msgs.h defines
@@ -113,6 +87,18 @@ void checkAndSetTemplateTimeout(int timeout)
     }
 }
 
+void checkAndSetExportTimeout(int timeout)
+{
+    if ( timeout > 0 )
+    {
+        exs.export_timeout = timeout;
+    }
+    else
+    {
+        fprintf(stderr,"Config - Export timeout invalid\n");
+    }
+}
+
 void printHelpMessage()
 {
     printf("\
@@ -125,18 +111,18 @@ void printHelpMessage()
 # Export informací o překladu adres\n\
 ######################################\n\
 Usage: natnf [ -h ] [ -c <collector-ip-address> ]\
- [ -p <collector-port> ] [ -s <syslog-ip-address> ] [ -r <syslog-port> ]\
- [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]\n\
+ [ -p <collector-port> ] [ -s ] [ -l <syslog-level> ]\
+ [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]\n\
 \t-h\thelp\n\
-\t-c\tcollector IP address\n\
-\t-p\tcollector port\n\
-\t-s\tsyslog IP address\n\
-\t-r\tsyslog port\n\
+\t-c\tcollector IP address (%s)\n\
+\t-p\tcollector port (%d)\n\
+\t-s\tenable syslog logging\n\
 \t-l\tsyslog level\n\
-\t-t\ttemplate timeout\n\
+\t-t\ttemplate timeout [seconds] (%d)\n\
+\t-e\texport timeout [seconds] (%d)\n\
 \t-F\tdaemonize\n\
 ######################################\n\
-");
+", COLLECTOR_IP_STR, COLLECTOR_PORT, _TEMPLATE_TIMEOUT, _EXPORT_TIMEOUT);
 }
 
 void load_config(int argc, char **argv)
@@ -145,7 +131,7 @@ void load_config(int argc, char **argv)
 
     extern char *optarg;
 
-    while ((opt = getopt(argc, argv, "hc:p:s:r:l:t:F")) != -1)
+    while ((opt = getopt(argc, argv, "hc:p:sl:t:e:F")) != -1)
     {
         switch (opt)
         {
@@ -162,14 +148,8 @@ void load_config(int argc, char **argv)
             i = atoi(optarg);
             checkAndSetCollectorPort(i);
             break;
-        case 's':       //set syslog IP address
-            if (!optarg) {break;}
-            checkAndSetSyslogIpAddress(optarg);
-            break;
-        case 'r':       //set syslog port
-            if (!optarg) {break;}
-            i = atoi(optarg);
-            checkAndSetSyslogPort(i);
+        case 's':       //enable syslog logging
+            exs.syslog_enable = 1;
             break;
         case 'l':       //set syslog level
             if (!optarg) {break;}
@@ -181,13 +161,18 @@ void load_config(int argc, char **argv)
             i = atoi(optarg);
             checkAndSetTemplateTimeout(i);
             break;
+        case 'e':       //set export timeout
+            if (!optarg) {break;}
+            i = atoi(optarg);
+            checkAndSetExportTimeout(i);
+            break;
         case 'F':       //daemonize
             exs.daemonize = 1;
             break;
         default:        //any other param is wrong
             error("Wrong parameter - use: [ -h ]\
- [ -c <collector-ip-address> ] [ -p <collector-port> ] [ -s <syslog-ip-address> ] [ -r <syslog-port> ]\
- [ -l <syslog-level> ] [ -t <template-timeout> ] [ -F ]");
+ [ -c <collector-ip-address> ] [ -p <collector-port> ] [ -s ]\
+ [ -l <syslog-level> ] [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]");
         }
     }
 
@@ -196,10 +181,10 @@ void load_config(int argc, char **argv)
     bzero(&exs.dest, sizeof(exs.dest));
     sprintf(tmp,"Collector:\t%s:%d",exs.ip_str,exs.port);
     DEBUG(tmp);
-    if ( 0 != strlen(exs.syslog_ip_str) )
+    if ( exs.syslog_enable )
     {
         bzero(&exs.dest, sizeof(exs.dest));
-        sprintf(tmp,"Syslog:\t\t%s:%d [%d]",exs.syslog_ip_str,exs.syslog_port,exs.syslog_level);
+        sprintf(tmp,"Syslog level:\t%d",exs.syslog_level);
         DEBUG(tmp);
     }
     bzero(&exs.dest, sizeof(exs.dest));

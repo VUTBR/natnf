@@ -24,10 +24,9 @@ char * trimwhitespace(char *);
 int isValidIpAddress(char *);
 void checkAndSetCollectorIpAddress(char *);
 void checkAndSetCollectorPort(int);
-void checkAndSetSyslogIpAddress(char *);
-void checkAndSetSyslogPort(int);
 void checkAndSetSyslogLevel(int);
 void checkAndSetTemplateTimeout(int);
+void checkAndSetExportTimeout(int);
 void printHelpMessage();
 void load_config(int, char **);
 
