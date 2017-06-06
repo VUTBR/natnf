@@ -565,7 +565,7 @@ void sendbuf_set_u32(struct send_buffer *b, uint32_t val, int offset, int is_ord
 void sendbuf_set_u64(struct send_buffer *b, uint64_t val, int offset, int is_order)
 {
     if (is_order)
-        ;/* TODO */
+        val = bswap_64(val);
     memcpy(((char *)b->data) + offset, &val, sizeof(val));
 }
 

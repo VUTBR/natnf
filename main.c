@@ -90,7 +90,7 @@ void parse_nat_header(struct nat_record *natr,
     natr->icmp_type = nfct_get_attr_u8(ct, ATTR_ICMP_TYPE);
     natr->icmp_code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
     natr->timestamp_ms = get_timestamp_ms();
-    printf("timestamp_ms=%x\n", natr->timestamp_ms);
+    printf("timestamp_ms=%llx\n", natr->timestamp_ms);
     if (type == NFCT_T_NEW)
         natr->nat_event = NAT_CREATE;
     else if (type == NFCT_T_DESTROY)
