@@ -122,7 +122,7 @@ Usage: natnf [ -h ] [ -c <collector-ip-address> ]\
 \t-e\texport timeout [seconds] (%d)\n\
 \t-F\tdaemonize\n\
 ######################################\n\
-", COLLECTOR_IP_STR, COLLECTOR_PORT, _TEMPLATE_TIMEOUT, _EXPORT_TIMEOUT);
+", COLLECTOR_IP_STR, COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
 }
 
 void load_config(int argc, char **argv)

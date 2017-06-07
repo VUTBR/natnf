@@ -234,14 +234,23 @@ void thread_exporter(void *arg)
     struct nat_record *natr;
     while (1)
     {
+        sleep(exs.export_timeout);
+
         DEBUG("sem_wait() call.");
         sem_wait(&cnt_buf_taken);
+        pthread_mutex_lock(&mutex_records);
+
         DEBUG("Enter critical section.");
+
         natr = nat_record_dup(buf_records[buf_begin]);
         free(buf_records[buf_begin]);
         buf_begin++;
         sem_post(&cnt_buf_empty);
+
+        pthread_mutex_unlock(&mutex_records);
+
         DEBUG("Leave critical section.");
+
         if (natr == NULL)
             continue;
         export_send_record(natr);

@@ -165,6 +165,7 @@ sem_t cnt_buf_empty;
 sem_t cnt_buf_taken;
 
 pthread_mutex_t mutex_socket = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_records = PTHREAD_MUTEX_INITIALIZER;
 
 int flow_sequence = 0;
 
@@ -187,7 +188,7 @@ void export_init_settings(int argc, char **argv)
 
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
-    exs.template_timeout = _TEMPLATE_TIMEOUT;
+    exs.template_timeout = TIMEOUT_TEMPLATE_DEFAULT;
     exs.syslog_enable = 0;
     exs.syslog_level = 4;
     exs.daemonize = 0;
@@ -315,9 +316,11 @@ void export_append(struct nat_record *natr)
 {
     DEBUG("sem_wait() call.");
     sem_wait(&cnt_buf_empty);
+    pthread_mutex_lock(&mutex_records);
     DEBUG("Enter critical section.");
     buf_records[buf_end] = natr;
     buf_end++;
+    pthread_mutex_unlock(&mutex_records);
     sem_post(&cnt_buf_taken);
     DEBUG("Leave critical section.");
 }
@@ -495,14 +498,16 @@ void serialize_flow_full(void)
     serialize_u8(flow_full.flow.nat_event, &sendbuf, 1);
     serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
+    /* Zero padding to a 32-bit boundary.
+     * Pads 0 to 3 bytes. */
     to_pad = (4 - (sendbuf.next % 4)) % 4;
     for (int i = 0; i < to_pad; i++)
     {
         serialize_u8(flow_full.padding[i], &sendbuf, 1);
     }
-    printf("sendbuf.next=%d, offset_start=%d, flowset_len_offset=%d\n",
-            sendbuf.next, offset_start, flowset_len_offset);
-    printf("len=%d, offset=%d\n", sendbuf.next - offset_start, flowset_len_offset);
+    //printf("sendbuf.next=%d, offset_start=%d, flowset_len_offset=%d\n",
+    //        sendbuf.next, offset_start, flowset_len_offset);
+    //printf("len=%d, offset=%d\n", sendbuf.next - offset_start, flowset_len_offset);
 
     /* Set the length of the flowset to (next - offset_start) retrospectively. */
     sendbuf_set_u16(&sendbuf, sendbuf.next - offset_start, flowset_len_offset, 1);
