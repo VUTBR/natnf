@@ -331,13 +331,15 @@ void export_send_record(struct nat_record *natr)
 
     addrlen = sizeof(struct sockaddr);
     flags = 0;
-    is_full = !is_protocol_portless(natr->protocol);
+    /* XXX */
+    is_full = 1;
+    /* XXX */
     export_init_sendbuf();
 
     /* Fill in header values. */
     hdr = is_full ? (struct packet_header *) &flow_full
         : (struct packet_header *) &flow_no_ports;
-    hdr->count = htons(1);
+    hdr->count = 1;
     hdr->sys_uptime = get_uptime_ms();
     hdr->timestamp = get_timestamp_s();
 
@@ -350,9 +352,6 @@ void export_send_record(struct nat_record *natr)
     if (is_full)
     {
         flow_full.flowset_id = TEMPLATE_ID_FULL;
-        flow_full.flowset_len = sizeof(flow_full.flowset_id) +
-            sizeof(flow_full.flowset_len) +
-            sizeof(flow_full.flow) + 4;
         flow_full.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_full.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
         flow_full.flow.src_port = natr->pre_nat_src_port;
@@ -363,17 +362,13 @@ void export_send_record(struct nat_record *natr)
         flow_full.flow.post_nat_dst_port = natr->post_nat_dst_port;
         flow_full.flow.protocol = natr->protocol;
         flow_full.flow.nat_event = natr->nat_event;
-        flow_full.flow.observation_time_ms = natr->timestamp_ms; /* XXX network byte order? */
-        //sendbuf = (void *) &flow_full;
+        flow_full.flow.observation_time_ms = natr->timestamp_ms;
 
         serialize_flow_full();
     }
     else
     {
         flow_no_ports.flowset_id = TEMPLATE_ID_NO_PORTS;
-        flow_no_ports.flowset_len = sizeof(flow_no_ports.flowset_id) +
-                sizeof(flow_no_ports.flowset_len) +
-                sizeof(flow_no_ports.flow) + 4;
         flow_no_ports.flowset_len += (4 - (flow_no_ports.flowset_len % 4)) % 4;
         flow_no_ports.flow.src_ip = natr->pre_nat_src_ip.s_addr;
         flow_no_ports.flow.dst_ip = natr->pre_nat_dst_ip.s_addr;
@@ -383,8 +378,7 @@ void export_send_record(struct nat_record *natr)
         flow_no_ports.flow.icmp_code = natr->icmp_code;
         flow_no_ports.flow.protocol = natr->protocol;
         flow_no_ports.flow.nat_event = natr->nat_event;
-        flow_no_ports.flow.observation_time_ms = natr->timestamp_ms; /* network byte order? */
-        //sendbuf = (void *) &flow_no_ports;
+        flow_no_ports.flow.observation_time_ms = natr->timestamp_ms;
 
         serialize_flow_no_ports();
     }
@@ -477,6 +471,7 @@ void serialize_u64(uint64_t x, struct send_buffer *b, int is_order)
 void serialize_flow_full(void)
 {
     int to_pad;
+    int flowset_len_offset, offset_start;
 
     serialize_u16(flow_full.version, &sendbuf, 1);
     serialize_u16(flow_full.count, &sendbuf, 1);
@@ -484,7 +479,9 @@ void serialize_flow_full(void)
     serialize_u32(flow_full.timestamp, &sendbuf, 1);
     serialize_u32(flow_full.seq_number, &sendbuf, 1);
     serialize_u32(flow_full.source_id, &sendbuf, 1);
+    offset_start = sendbuf.next;
     serialize_u16(flow_full.flowset_id, &sendbuf, 1);
+    flowset_len_offset = sendbuf.next;
     serialize_u16(flow_full.flowset_len, &sendbuf, 1);
     serialize_u32(flow_full.flow.src_ip, &sendbuf, 0);
     serialize_u32(flow_full.flow.dst_ip, &sendbuf, 0);
@@ -499,10 +496,16 @@ void serialize_flow_full(void)
     serialize_u64(flow_full.flow.observation_time_ms, &sendbuf, 1);
 
     to_pad = (4 - (sendbuf.next % 4)) % 4;
-    for (int i = 0; i < to_pad + 4; i++)
+    for (int i = 0; i < to_pad; i++)
     {
         serialize_u8(flow_full.padding[i], &sendbuf, 1);
     }
+    printf("sendbuf.next=%d, offset_start=%d, flowset_len_offset=%d\n",
+            sendbuf.next, offset_start, flowset_len_offset);
+    printf("len=%d, offset=%d\n", sendbuf.next - offset_start, flowset_len_offset);
+
+    /* Set the length of the flowset to (next - offset_start) retrospectively. */
+    sendbuf_set_u16(&sendbuf, sendbuf.next - offset_start, flowset_len_offset, 1);
 }
 
 void serialize_flow_no_ports(void)
@@ -511,7 +514,7 @@ void serialize_flow_no_ports(void)
     int flowset_len_offset, offset_start;
 
     serialize_u16(flow_no_ports.version, &sendbuf, 1);
-    serialize_u16(flow_no_ports.count, &sendbuf, 0);
+    serialize_u16(flow_no_ports.count, &sendbuf, 1);
     serialize_u32(flow_no_ports.sys_uptime, &sendbuf, 1);
     serialize_u32(flow_no_ports.timestamp, &sendbuf, 1);
     serialize_u32(flow_no_ports.seq_number, &sendbuf, 1);
@@ -538,7 +541,8 @@ void serialize_flow_no_ports(void)
     printf("sendbuf.next=%d, offset_start=%d, flowset_len_offset=%d\n",
             sendbuf.next, offset_start, flowset_len_offset);
     printf("len=%d, offset=%d\n", sendbuf.next - offset_start, flowset_len_offset);
-    /* Set length of the flowset retrospectively. */
+
+    /* Set the length of the flowset to (next - offset_start) retrospectively. */
     sendbuf_set_u16(&sendbuf, sendbuf.next - offset_start, flowset_len_offset, 1);
 }
 
