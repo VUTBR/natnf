@@ -190,4 +190,7 @@ void load_config(int argc, char **argv)
     bzero(&exs.dest, sizeof(exs.dest));
     sprintf(tmp,"Template timeout:\t%d",exs.template_timeout);
     DEBUG(tmp);
+    bzero(&exs.dest, sizeof(exs.dest));
+    sprintf(tmp,"Export timeout:\t%d",exs.export_timeout);
+    DEBUG(tmp);
 }

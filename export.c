@@ -294,6 +294,7 @@ void export_append(struct nat_record *natr)
     DEBUG("Enter critical section.");
     buf_records[buf_end] = natr;
     buf_end++;
+    if(RECORDS_MAX==buf_end){buf_end=0;}    //modulo RECORDS_MAX
     pthread_mutex_unlock(&mutex_records);
     sem_post(&cnt_buf_taken);
     DEBUG("Leave critical section.");

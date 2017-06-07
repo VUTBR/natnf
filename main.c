@@ -232,50 +232,88 @@ void thread_catcher(void *arg)
 void thread_exporter(void *arg)
 {
     struct nat_record *natr;
-    int i, ret, more_records;
+    int i, j, ret, more_records, first_run;
+
+    int exported_time = get_timestamp_s();
+
     while (1)
     {
-        DEBUG("Sleeping...");
-        printf("exs.export_timeout=%d\n", exs.export_timeout);
-        sleep(exs.export_timeout);
-        DEBUG("Sleep ended.");
-
         DEBUG("sem_wait() call.");
         sem_wait(&cnt_buf_taken);
-        pthread_mutex_lock(&mutex_records);
-        DEBUG("Enter critical section.");
 
-        more_records = 1;
+        first_run = 1;
+        i = 0;
+
         while (1)
         {
             /* Gather as many records as possible. */
-            for (i = 0; i < MAX_FLOWS; i++)
-                natr_buffer[i] = NULL;
-            for (i = 0; i < MAX_FLOWS; i++)
+            if (first_run)
             {
-                natr = nat_record_dup(buf_records[buf_begin]);
+	            for (j = 0; j < MAX_FLOWS; j++)
+	                natr_buffer[j] = NULL;
+	            first_run = 0;
+			}
+
+			more_records = 1;
+
+			usleep(10);		//not active waiting
+
+            while ( i < MAX_FLOWS )
+            {
+				//check after first flow gathered
+				if (i)
+				{
+	                /* See if there are more records to gather. */
+	                ret = sem_trywait(&cnt_buf_taken);
+	                if (ret == -1 && errno == EAGAIN)
+	                {
+	                    more_records = 0;
+	                    break;
+	                }
+	            }
+
+				//DEBUG("Enter critical section.");
+	            pthread_mutex_lock(&mutex_records);
+
+				natr = nat_record_dup(buf_records[buf_begin]);
                 natr_buffer[i] = natr;
                 free(buf_records[buf_begin]);
                 buf_begin++;
+                if(RECORDS_MAX==buf_begin){buf_begin=0;}	//modulo RECORDS_MAX
                 sem_post(&cnt_buf_empty);
 
-                /* See if there are more records to gather. */
-                ret = sem_trywait(&cnt_buf_taken);
-                if (ret == -1 && errno == EAGAIN)
-                {
-                    more_records = 0;
-                    break;
-                }
+                //DEBUG("Leave critical section.");
+                pthread_mutex_unlock(&mutex_records);
+
+                i++;
             }
 
-            export_send_records();
+            /* See if there are more records to gather. */
+            ret = sem_trywait(&cnt_buf_taken);
+            if (ret == -1 && errno == EAGAIN)
+            {
+                more_records = 0;
+            }
 
-            if (!more_records)
-                break;
+            //full packet OR exceeded export timeout
+            if (	((NULL != natr_buffer[MAX_FLOWS-1]) ||
+						((exported_time + exs.export_timeout) < get_timestamp_s())
+					) &&
+					i
+			)
+            {
+				//printf("%d\t%d\t%d\t%d\n",i, more_records,(NULL != natr_buffer[MAX_FLOWS-1]),((exported_time + exs.export_timeout) < get_timestamp_s()));
+				export_send_records();
+
+				exported_time = get_timestamp_s();
+
+				first_run = 1;
+				i = 0;
+
+	            if (!more_records)
+	                break;
+            }
         }
-
-        pthread_mutex_unlock(&mutex_records);
-        DEBUG("Leave critical section.");
     }
 }
 
