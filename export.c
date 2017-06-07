@@ -46,6 +46,9 @@ int template_no_ports_fields[][2] =
     {TL_OBSERVATION_TIME_MS, 8}
 };
 
+/* A buffer of NAT record pointers. Used by the exporter thread. */
+struct nat_record *natr_buffer[64] = { NULL };
+
 /** Template structures.
  * For the detailed explanation of the fields, see:
  * http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
@@ -88,36 +91,6 @@ struct template_packet
     /* Templates: */
     struct template_full t1;
     struct template_no_ports t2;
-};
-
-struct flow_full
-{
-    uint64_t observation_time_ms;
-    uint32_t src_ip;
-    uint32_t dst_ip;
-    uint16_t src_port;
-    uint16_t dst_port;
-    uint32_t post_nat_src_ip;
-    uint32_t post_nat_dst_ip;
-    uint16_t post_nat_src_port;
-    uint16_t post_nat_dst_port;
-    uint8_t protocol;
-    uint8_t nat_event;
-};
-struct flow_packet_full
-{
-    uint16_t version;
-    uint16_t count;
-    uint32_t sys_uptime;
-    uint32_t timestamp;
-    uint32_t seq_number;
-    uint32_t source_id;
-    /* Flow set: */
-    uint16_t flowset_id;
-    uint16_t flowset_len;
-
-    struct flow_full flow;
-    char padding[32];
 };
 
 struct flow_no_ports
@@ -189,6 +162,7 @@ void export_init_settings(int argc, char **argv)
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
     exs.template_timeout = TIMEOUT_TEMPLATE_DEFAULT;
+    exs.export_timeout = TIMEOUT_EXPORT_DEFAULT;
     exs.syslog_enable = 0;
     exs.syslog_level = 4;
     exs.daemonize = 0;
@@ -398,6 +372,75 @@ void export_send_record(struct nat_record *natr)
     pthread_mutex_unlock(&mutex_socket);
     export_free_sendbuf();
     DEBUG("Data flow packet sent.");
+}
+
+/** Send all of the records stored in the natr_buffer.
+ */
+void export_send_records(void)
+{
+    size_t len;
+    int flags, ret, count, i, to_pad;
+    int offset_start, flowset_len_offset;
+    socklen_t addrlen;
+    struct packet_header *hdr;
+    struct nat_record *natr;
+
+    addrlen = sizeof(struct sockaddr);
+    flags = 0;
+    export_init_sendbuf();
+
+    /* count shall hold the number of records to send. */
+    for (count = 0; natr_buffer[count] != NULL; count++);
+
+    serialize_u16(9, &sendbuf, 1); /* version */
+    serialize_u16(count, &sendbuf, 1);
+    serialize_u32(get_uptime_ms(), &sendbuf, 1);
+    serialize_u32(get_timestamp_s(), &sendbuf, 1);
+    serialize_u32(flow_sequence, &sendbuf, 1);
+    flow_sequence++;
+    serialize_u32(0x000000aa, &sendbuf, 1); /* Source ID */
+    offset_start = sendbuf.next; /* To know where the padded area starts. */
+    serialize_u16(TEMPLATE_ID_FULL, &sendbuf, 1); /* Flowset ID. */
+    flowset_len_offset = sendbuf.next; /* To know the flowset_len's offset. */
+    serialize_u16(0, &sendbuf, 1); /* Dummy value for flowset length. */
+
+    i = 0;
+    for (natr = natr_buffer[i]; natr != NULL; natr = natr_buffer[++i])
+    {
+        serialize_u32(natr->pre_nat_src_ip.s_addr, &sendbuf, 0);
+        serialize_u32(natr->pre_nat_dst_ip.s_addr, &sendbuf, 0);
+        serialize_u16(natr->pre_nat_src_port, &sendbuf, 1);
+        serialize_u16(natr->pre_nat_dst_port, &sendbuf, 1);
+        serialize_u32(natr->post_nat_src_ip.s_addr, &sendbuf, 0);
+        serialize_u32(natr->post_nat_dst_ip.s_addr, &sendbuf, 0);
+        serialize_u16(natr->post_nat_src_port, &sendbuf, 1);
+        serialize_u16(natr->post_nat_dst_port, &sendbuf, 1);
+        serialize_u8(natr->protocol, &sendbuf, 1);
+        serialize_u8(natr->nat_event, &sendbuf, 1);
+        serialize_u64(natr->timestamp_ms, &sendbuf, 1);
+        free(natr);
+    }
+
+    /* Zero padding to a 32-bit boundary.
+     * Pads 0 to 3 bytes. */
+    to_pad = (4 - (sendbuf.next % 4)) % 4;
+    for (i = 0; i < to_pad; i++)
+    {
+        serialize_u8(flow_full.padding[i], &sendbuf, 1);
+    }
+    /* Set the length of the flowset to (next - offset_start) retrospectively. */
+    sendbuf_set_u16(&sendbuf, sendbuf.next - offset_start, flowset_len_offset, 1);
+
+    DEBUG("Sending data flow packet...");
+    pthread_mutex_lock(&mutex_socket);
+
+    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, (struct sockaddr *)&exs.dest, addrlen);
+    if (ret == -1)
+        perror("sendto");
+    pthread_mutex_unlock(&mutex_socket);
+    export_free_sendbuf();
+    DEBUG("Data flow packet sent.");
+
 }
 
 void export_send_template(void)

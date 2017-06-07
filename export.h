@@ -21,7 +21,7 @@
 
 #define RECORDS_MAX 65536
 #define TIMEOUT_TEMPLATE_DEFAULT 60
-#define TIMEOUT_EXPORT_DEFAULT 3
+#define TIMEOUT_EXPORT_DEFAULT 10
 
 #define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
 #define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
@@ -111,7 +111,42 @@ extern struct template_no_ports;
 extern struct template_packet;
 
 /* Flow packet structures. */
-extern struct flow_packet_full;
+struct flow_full
+{
+    uint64_t observation_time_ms;
+    uint32_t src_ip;
+    uint32_t dst_ip;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint32_t post_nat_src_ip;
+    uint32_t post_nat_dst_ip;
+    uint16_t post_nat_src_port;
+    uint16_t post_nat_dst_port;
+    uint8_t protocol;
+    uint8_t nat_event;
+};
+
+struct flow_packet_full
+{
+    uint16_t version;
+    uint16_t count;
+    uint32_t sys_uptime;
+    uint32_t timestamp;
+    uint32_t seq_number;
+    uint32_t source_id;
+    /* Flow set: */
+    uint16_t flowset_id;
+    uint16_t flowset_len;
+
+    struct flow_full flow;
+    char padding[32];
+};
+
+/* How many flows can be sent in one UDP datagram.
+ * 1500 is the maximum UDP datagram size, 68 is the size
+ * of the packet with zero flows. */
+#define MAX_FLOWS ((1500 - 68) / (sizeof(struct flow_full)))
+
 extern struct flow_packet_no_ports;
 
 /* The structure for the serialized data. */
@@ -137,6 +172,8 @@ extern pthread_mutex_t mutex_records;
 /* Cumulative netflow packet counter. */
 extern int flow_sequence;
 
+extern struct nat_record *natr_buffer[];
+
 void export_init_settings(int argc, char **argv);
 void export_init(int argc, char **argv);
 void export_init_flow(void);
@@ -146,6 +183,7 @@ void export_free_sendbuf(void);
 void export_finish(void);
 void export_append(struct nat_record *natr);
 void export_send_record(struct nat_record *natr);
+void export_send_records(void);
 void export_send_template(void);
 void reserve_space(struct send_buffer *b, size_t bytes);
 void serialize_u8(uint8_t x, struct send_buffer *b, int is_order);
