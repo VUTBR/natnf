@@ -57,6 +57,26 @@
 
 #define member_size(type, member) sizeof(((type *)0)->member)
 
+/* How many flows can be sent in one UDP datagram.
+ * 1500 is the maximum UDP datagram size, 68 is the size
+ * of the packet with zero flows.
+ * The value cannot be calculated using the size of the
+ * flow_full structure because of compiler padding. */
+#define MAX_FLOWS ((1500 - 66) / ( \
+            sizeof(uint64_t) + \
+            sizeof(uint32_t) + \
+            sizeof(uint32_t) + \
+            sizeof(uint16_t) + \
+            sizeof(uint16_t) + \
+            sizeof(uint32_t) + \
+            sizeof(uint32_t) + \
+            sizeof(uint16_t) + \
+            sizeof(uint16_t) + \
+            sizeof(uint8_t) + \
+            sizeof(uint8_t) ) \
+            )
+
+
 /* Fields that identify a NAT translation. */
 struct nat_record
 {
@@ -111,6 +131,11 @@ extern struct template_no_ports;
 extern struct template_packet;
 
 /* Flow packet structures. */
+/** Warning: If you add a new item to the flow, then you must adjust the following:
+ *   * the MAX_FLOWS macro
+ *   * the template_full_fields array
+ *   * the appropriate serialization code.
+ */
 struct flow_full
 {
     uint64_t observation_time_ms;
@@ -141,11 +166,6 @@ struct flow_packet_full
     struct flow_full flow;
     char padding[32];
 };
-
-/* How many flows can be sent in one UDP datagram.
- * 1500 is the maximum UDP datagram size, 68 is the size
- * of the packet with zero flows. */
-#define MAX_FLOWS ((1500 - 68) / (sizeof(struct flow_full)))
 
 extern struct flow_packet_no_ports;
 
