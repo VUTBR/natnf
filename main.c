@@ -105,7 +105,7 @@ void parse_nat_header(struct nat_record *natr,
         natr->post_nat_src_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
         natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
     }
-    printf("timestamp_ms=%llx\n", natr->timestamp_ms);
+
     if (type == NFCT_T_NEW)
         natr->nat_event = NAT_CREATE;
     else if (type == NFCT_T_DESTROY)
@@ -128,41 +128,41 @@ void print_nat_header(struct nat_record *natr)
 
     int is_full = !is_protocol_portless(natr->protocol);
 
-    if (is_full)
+    if (exs.syslog_enable)
     {
-        msg("NAT_EVENT=%s, SRC_IP=%s, SRC_PORT=%d, POST_NAT_SRC_IP=%s, POST_NAT_SRC_PORT=%d\
- DST_IP=%s, DST_PORT=%d, POST_NAT_DST_IP=%s, POST_NAT_DST_PORT=%d, PROTOCOL=%d",
-                type[natr->nat_event],
-                inet_ntoa(natr->pre_nat_src_ip),
-                natr->pre_nat_src_port,
-                inet_ntoa(natr->post_nat_src_ip),
-                natr->post_nat_src_port,
-                inet_ntoa(natr->pre_nat_dst_ip),
-                natr->pre_nat_dst_port,
-                inet_ntoa(natr->post_nat_dst_ip),
-                natr->post_nat_dst_port,
-                natr->protocol
-            );
-    }
-    else
-    {
-        /* TODO Why are the ip addresses the same? */
-        msg("NAT_EVENT=%s, SRC_IP=%s, POST_NAT_SRC_IP=%s, DST_IP=%s, POST_NAT_DST_IP=%s,\
- PROTOCOL=%d, ICMP_TYPE=%d, ICMP_CODE=%d",
-                type[natr->nat_event],
-                inet_ntoa(natr->pre_nat_src_ip),
-                inet_ntoa(natr->post_nat_src_ip),
-                inet_ntoa(natr->pre_nat_dst_ip),
-                inet_ntoa(natr->post_nat_dst_ip),
-                natr->protocol,
-                natr->icmp_type,
-                natr->icmp_code
-            );
+        bzero(&buf, sizeof(buf));
+
+        cx = snprintf(buf, MAX_STRING - 1,"NAT_EVENT=%s, SRC_IP=%s", 
+                        type[natr->nat_event], 
+                        inet_ntoa(natr->pre_nat_src_ip));
+        if (is_full)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", SRC_PORT=%d", natr->pre_nat_src_port);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", POST_NAT_SRC_IP=%s", inet_ntoa(natr->post_nat_src_ip));
+        if (is_full)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", POST_NAT_SRC_PORT=%d", natr->post_nat_src_port);
+
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", DST_IP=%s", inet_ntoa(natr->pre_nat_dst_ip));
+        if (is_full)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", DST_PORT=%d", natr->pre_nat_dst_port);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", POST_NAT_DST_IP=%s", inet_ntoa(natr->post_nat_dst_ip));
+        if (is_full)
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", POST_NAT_DST_PORT=%d", natr->post_nat_dst_port);
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", PROTOCOL=%d", natr->protocol);
+        if (natr->protocol == IPPROTO_ICMP)
+        {
+            cx += snprintf(buf+cx, MAX_STRING - 1 - cx,", ICMP_TYPE=%d, ICMP_CODE=%d",
+                        natr->icmp_type,
+                        natr->icmp_code);
+        }
+
+        msg(buf);
     }
 
     /* Print some debugging info about the nat record. */
     if (is_debug)
     {
+        bzero(&buf, sizeof(buf));
+
         cx = snprintf(buf, MAX_STRING - 1,"[%s] %s", type[natr->nat_event], inet_ntoa(natr->pre_nat_src_ip));
         
         if (is_full)
@@ -184,7 +184,7 @@ void print_nat_header(struct nat_record *natr)
         {
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx," [%d] - (%d|%d)",natr->protocol, natr->icmp_type, natr->icmp_code);
         }
-    
+
         DEBUG(buf);
     }
 }
@@ -211,12 +211,9 @@ void thread_catcher(void *arg)
 
 	nfct_callback_register(h, NFCT_T_ALL, event_cb, ct);
 
-	printf("TEST: waiting for events...\n");
-
     /* The following is a blocking call. */
 	ret = nfct_catch(h);
 
-	printf("TEST: conntrack events ");
 	if (ret == -1)
 		printf("(%d)(%s)\n", ret, strerror(errno));
 	else

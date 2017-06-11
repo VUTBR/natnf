@@ -171,7 +171,7 @@ void export_init_settings(int argc, char **argv)
 
     if (exs.syslog_enable)
     {
-        msg_init(1);    // 1 for debug
+        msg_init(0);    // 1 for debug
     }
 
     if (exs.daemonize)
