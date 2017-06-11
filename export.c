@@ -254,11 +254,10 @@ void export_init_template(void)
     bzero(&template, sizeof(template));
 
     export_init_header(&template);
-    template.count = htons(2); /* 2 templates in a flow. */
 
     template.flowset_id = htons(0);
     template.flowset_len = htons(sizeof(template.flowset_id) + sizeof(template.flowset_len) +
-            sizeof(template.t1) + sizeof(template.t2));
+            sizeof(template.t1));
 
     template.t1.template_id = htons(TEMPLATE_ID_FULL);
     template.t1.field_count = htons(N_FIELDS_FULL);
@@ -268,13 +267,14 @@ void export_init_template(void)
         template.t1.tl[i].len = htons(template_full_fields[i][1]);
     }
 
-    template.t2.template_id = htons(TEMPLATE_ID_NO_PORTS);
-    template.t2.field_count = htons(N_FIELDS_NO_PORTS);
-    for (i = 0; i < N_FIELDS_NO_PORTS; i++)
-    {
-        template.t2.tl[i].type = htons(template_no_ports_fields[i][0]);
-        template.t2.tl[i].len = htons(template_no_ports_fields[i][1]);
-    }
+    /* Template for flows without ports */
+    // template.t2.template_id = htons(TEMPLATE_ID_NO_PORTS);
+    // template.t2.field_count = htons(N_FIELDS_NO_PORTS);
+    // for (i = 0; i < N_FIELDS_NO_PORTS; i++)
+    // {
+    //     template.t2.tl[i].type = htons(template_no_ports_fields[i][0]);
+    //     template.t2.tl[i].len = htons(template_no_ports_fields[i][1]);
+    // }
 }
 
 void export_finish(void)
@@ -456,7 +456,7 @@ void export_send_template(void)
 
     pthread_mutex_lock(&mutex_socket);
     template.version = htons(9);
-    template.count = htons(2);
+    template.count = htons(1);
     template.source_id = htonl(0x000000aa);
     template.sys_uptime = htonl(get_uptime_ms());
     template.timestamp = htonl(get_timestamp_s());
