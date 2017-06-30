@@ -90,10 +90,11 @@ void parse_nat_header(struct nat_record *natr,
         natr->icmp_code = nfct_get_attr_u8(ct, ATTR_ICMP_CODE);
         /* Insert the ICMP type and code into port values.
          * The upper 8 bits out of 16 contain the type and the lower 8 contain
-         * the code. */
-        natr->pre_nat_src_port = (natr->icmp_type << 8) | (natr->icmp_code);
+         * the code. 
+         * Src port should be set to 0 */
+        natr->pre_nat_src_port = 0;
         natr->pre_nat_dst_port = (natr->icmp_type << 8) | (natr->icmp_code);
-        natr->post_nat_src_port = (natr->icmp_type << 8) | (natr->icmp_code);
+        natr->post_nat_src_port = 0;
         natr->post_nat_dst_port = (natr->icmp_type << 8) | (natr->icmp_code);
     }
     else
