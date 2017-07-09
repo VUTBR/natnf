@@ -20,7 +20,6 @@
 
 extern struct export_settings exs;
 
-char * trimwhitespace(char *);
 int isValidIpAddress(char *);
 void checkAndSetCollectorIpAddress(char *);
 void checkAndSetCollectorPort(char *);
