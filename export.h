@@ -10,14 +10,21 @@
 #ifndef EXPORT_H
 #define EXPORT_H
 
+#define _POSIX_C_SOURCE 200112L
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/ip.h>
+#include <pthread.h>
+#include <byteswap.h>
+
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <semaphore.h>
-#include <pthread.h>
 
 #define COLLECTOR_IP_STR "127.0.0.1"
-#define COLLECTOR_PORT 9996
+#define COLLECTOR_PORT "9996"
 
 #define RECORDS_MAX 65536
 #define TIMEOUT_TEMPLATE_DEFAULT 60
@@ -98,7 +105,7 @@ struct nat_record
 struct export_settings
 {
     char *ip_str;
-    int port;
+    char *port;
     int template_timeout;
     int export_timeout;
     int syslog_enable;
@@ -106,7 +113,7 @@ struct export_settings
     int daemonize;
     /* Outgoing connection identification: */
     int socket_out;
-    struct sockaddr_in dest;
+    struct addrinfo *dest;
 };
 
 extern int template_full_fields[][2];

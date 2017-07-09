@@ -23,7 +23,7 @@ extern struct export_settings exs;
 char * trimwhitespace(char *);
 int isValidIpAddress(char *);
 void checkAndSetCollectorIpAddress(char *);
-void checkAndSetCollectorPort(int);
+void checkAndSetCollectorPort(char *);
 void checkAndSetSyslogLevel(int);
 void checkAndSetTemplateTimeout(int);
 void checkAndSetExportTimeout(int);

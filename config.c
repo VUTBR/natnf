@@ -30,36 +30,16 @@ char * trimwhitespace(char *str)
     return str;
 }
 
-int isValidIpAddress(char *ipAddress)
+void checkAndSetCollectorPort(char *port)
 {
-    struct sockaddr_in sa;
-    int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
-    return result != 0;
-}
-
-void checkAndSetCollectorIpAddress(char *address)
-{
-    if ( isValidIpAddress(address) )
-    {
-        //reallocate ip_str to appropriate size
-        exs.ip_str = (char *)malloc(sizeof(char) * strlen(address));
-        strncpy(exs.ip_str, address, strlen(address));
+    int i = atoi(port);
+    if ( i < 65536 && i > 0 ) {
+        exs.port = (char *)malloc(sizeof(char) * strlen(port));
+        strncpy(exs.port, port, strlen(port));
     }
-    else
-    {
-        fprintf(stderr,"Config - Collector IP address invalid\n");
-    }
-}
-
-void checkAndSetCollectorPort(int port)
-{
-    if ( port < 65536 && port > 0 )
-    {
-        exs.port = port;
-    }
-    else
-    {
-        fprintf(stderr,"Config - Collector port invalid\n");
+    else {
+        fprintf(stderr, "config - Collector port is invalid\n");
+		exit(1);
     }
 }
 
@@ -139,14 +119,14 @@ void load_config(int argc, char **argv)
             printHelpMessage();
             exit(0);
             break;
-        case 'c':       //set collector IP address
+        case 'c':       //set collector IP address, IP address check is performed in getaddrinfo() function
             if (!optarg) {break;}
-            checkAndSetCollectorIpAddress(optarg);
+        	exs.ip_str = (char *)malloc(sizeof(char) * strlen(optarg));
+        	strncpy(exs.ip_str, optarg, strlen(optarg));
             break;
         case 'p':       //set collector port
             if (!optarg) {break;}
-            i = atoi(optarg);
-            checkAndSetCollectorPort(i);
+            checkAndSetCollectorPort(optarg);
             break;
         case 's':       //enable syslog logging
             exs.syslog_enable = 1;
@@ -178,19 +158,15 @@ void load_config(int argc, char **argv)
 
     char tmp[80];
     
-    bzero(&exs.dest, sizeof(exs.dest));
     sprintf(tmp,"Collector:\t%s:%d",exs.ip_str,exs.port);
     DEBUG(tmp);
     if ( exs.syslog_enable )
     {
-        bzero(&exs.dest, sizeof(exs.dest));
         sprintf(tmp,"Syslog level:\t%d",exs.syslog_level);
         DEBUG(tmp);
     }
-    bzero(&exs.dest, sizeof(exs.dest));
     sprintf(tmp,"Template timeout:\t%d",exs.template_timeout);
     DEBUG(tmp);
-    bzero(&exs.dest, sizeof(exs.dest));
     sprintf(tmp,"Export timeout:\t%d",exs.export_timeout);
     DEBUG(tmp);
 }

@@ -7,14 +7,8 @@
 /*                export.c                     */
 /***********************************************/
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <pthread.h>
-#include <byteswap.h>
-
-#include "error.h"
 #include "export.h"
+#include "error.h"
 #include "utils.h"
 #include "msgs.h"
 #include "daemonize.h"
@@ -157,7 +151,9 @@ static struct send_buffer sendbuf;
  */
 void export_init_settings(int argc, char **argv)
 {
-    int ret;
+    struct addrinfo hints;
+    struct addrinfo *collector_info;
+    int rv;
 
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
@@ -182,19 +178,30 @@ void export_init_settings(int argc, char **argv)
         }
     }
 
-    exs.socket_out = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (exs.socket_out == -1)
-    {
-        error("Socket not created");
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    if ((rv = getaddrinfo(exs.ip_str, exs.port, &hints, &collector_info)) != 0) {
+		/* getaddrinfo doesn't set errno, thus the error directly here */
+        fprintf(stderr, "%s\n", gai_strerror(rv));
+ 		exit(1);
     }
-    bzero(&exs.dest, sizeof(exs.dest));
-    exs.dest.sin_family = AF_INET;
-    exs.dest.sin_port = htons(exs.port);
-    ret = inet_aton(exs.ip_str, &exs.dest.sin_addr);
-    if (ret == 0)
-    {
-        error("inet_aton");
+
+    // loop through all the results and connect to the first we can
+    for (exs.dest = collector_info; exs.dest != NULL; exs.dest = exs.dest->ai_next) {
+        if ((exs.socket_out = socket(exs.dest->ai_family, exs.dest->ai_socktype,
+                exs.dest->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+        break;
     }
+
+    if (exs.dest == NULL) {
+        error("client: failed to connect");
+    }
+
 }
 
 void export_init_sendbuf(void)
@@ -361,7 +368,7 @@ void export_send_record(struct nat_record *natr)
         serialize_flow_no_ports();
     }
 
-    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, (struct sockaddr *)&exs.dest, addrlen);
+    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, exs.dest->ai_addr, exs.dest->ai_addrlen);
     /*
     if (is_full)
         ret = sendto(exs.socket_out, &flow_full, len, flags, (struct sockaddr *)&exs.dest, addrlen);
@@ -435,7 +442,7 @@ void export_send_records(void)
     DEBUG("Sending data flow packet...");
     pthread_mutex_lock(&mutex_socket);
 
-    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, (struct sockaddr *)&exs.dest, addrlen);
+    ret = sendto(exs.socket_out, sendbuf.data, sendbuf.next, flags, exs.dest->ai_addr, exs.dest->ai_addrlen);
     if (ret == -1)
         perror("sendto");
     pthread_mutex_unlock(&mutex_socket);
@@ -462,7 +469,7 @@ void export_send_template(void)
     template.timestamp = htonl(get_timestamp_s());
     template.seq_number = htonl(flow_sequence);
     flow_sequence++;
-    sendto(exs.socket_out, &template, len, flags, (struct sockaddr *)&exs.dest, addrlen);
+    sendto(exs.socket_out, &template, len, flags, exs.dest->ai_addr, exs.dest->ai_addrlen);
     pthread_mutex_unlock(&mutex_socket);
 }
 
