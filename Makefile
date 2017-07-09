@@ -21,5 +21,5 @@ install:
 	install -m 0755 $(PROG_NAME) $(DESTDIR)$(PREFIX)/bin
 
 clean:
-	@- $(RM) $(PROG_NAME)
-	@- $(RM) $(OBJS)
+	$(RM) $(PROG_NAME)
+	$(RM) $(OBJS)
