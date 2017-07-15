@@ -61,28 +61,18 @@ void checkAndSetExportTimeout(int timeout)
 
 void printHelpMessage()
 {
-    printf("\
-######################################\n\
-# Help for natnf project\n\
-# Authors\n\
-#     Jakub Mackovič - xmacko00\n\
-#     Jakub Pastuszek - xpastu00\n\
-# VUT FIT Brno\n\
-# Export informací o překladu adres\n\
-######################################\n\
-Usage: natnf [ -h ] [ -c <collector-ip-address> ]\
- [ -p <collector-port> ] [ -s ] [ -l <syslog-level> ]\
+    printf("Usage: natnf -c <collector-ip-address>\
+ [ -p <collector-port> ] [ -h ] [ -s ] [ -l <syslog-level> ]\
  [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]\n\
+\t-c\tcollector IPv4/IPv6 address or DNS name\n\
+\t-p\tcollector port (default value: %s)\n\
 \t-h\thelp\n\
-\t-c\tcollector IP address (%s)\n\
-\t-p\tcollector port (%d)\n\
 \t-s\tenable syslog logging\n\
 \t-l\tsyslog level\n\
-\t-t\ttemplate timeout [seconds] (%d)\n\
-\t-e\texport timeout [seconds] (%d)\n\
+\t-t\ttemplate timeout [seconds] (default value: %d)\n\
+\t-e\texport timeout [seconds] (default value: %d)\n\
 \t-F\tdaemonize\n\
-######################################\n\
-", COLLECTOR_IP_STR, COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
+", COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
 }
 
 void load_config(int argc, char **argv)
@@ -90,6 +80,11 @@ void load_config(int argc, char **argv)
     int opt, i;
 
     extern char *optarg;
+
+	if (argc < 2) {
+		fprintf(stderr, "Please specify collector IP address and port. See -h or manpage for help\n");
+        exit(0);
+	}
 
     while ((opt = getopt(argc, argv, "hc:p:sl:t:e:F")) != -1)
     {
@@ -138,7 +133,7 @@ void load_config(int argc, char **argv)
 
     char tmp[80];
     
-    sprintf(tmp,"Collector:\t%s:%d",exs.ip_str,exs.port);
+    sprintf(tmp,"Collector:\t%s:%s",exs.ip_str,exs.port);
     DEBUG(tmp);
     if ( exs.syslog_enable )
     {
