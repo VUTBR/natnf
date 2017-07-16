@@ -160,7 +160,7 @@ void print_nat_header(struct nat_record *natr)
     }
 
     /* Print some debugging info about the nat record. */
-    if (is_debug)
+    if (exs.verbose)
     {
         bzero(&buf, sizeof(buf));
 
@@ -332,7 +332,6 @@ void thread_template(void *arg)
 int main(int argc, char **argv)
 {
 	int ret;
-    unsigned short value;
     pthread_t pt[3];
     pthread_attr_t attr;
     void *statp;

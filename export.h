@@ -106,6 +106,7 @@ struct export_settings
 {
     char *ip_str;
     char *port;
+    int verbose;
     int template_timeout;
     int export_timeout;
     int syslog_enable;

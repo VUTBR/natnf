@@ -157,6 +157,7 @@ void export_init_settings(int argc, char **argv)
 
     exs.ip_str = COLLECTOR_IP_STR;
     exs.port = COLLECTOR_PORT;
+    exs.verbose = 0;
     exs.template_timeout = TIMEOUT_TEMPLATE_DEFAULT;
     exs.export_timeout = TIMEOUT_EXPORT_DEFAULT;
     exs.syslog_enable = 0;

@@ -13,9 +13,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
-extern const int is_debug;
+extern struct export_settings exs;
+
 #define DEBUG(msg) \
-    if (is_debug) fprintf(stderr, "[%s] %s\n", __func__, msg);
+    if (exs.verbose) fprintf(stderr, "[%s] %s\n", __func__, msg);
 
 uint32_t get_uptime_ms(void);
 uint32_t get_timestamp_s(void);

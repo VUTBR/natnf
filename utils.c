@@ -16,8 +16,6 @@
 
 #include "utils.h"
 
-const int is_debug = 0;
-
 uint32_t get_uptime_ms(void)
 {
     struct sysinfo info;

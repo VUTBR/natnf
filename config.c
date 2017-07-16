@@ -61,18 +61,15 @@ void checkAndSetExportTimeout(int timeout)
 
 void printHelpMessage()
 {
-    printf("Usage: natnf -c <collector-ip-address>\
- [ -p <collector-port> ] [ -h ] [ -s ] [ -l <syslog-level> ]\
- [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]\n\
-\t-c\tcollector IPv4/IPv6 address or DNS name\n\
-\t-p\tcollector port (default value: %s)\n\
-\t-h\thelp\n\
-\t-s\tenable syslog logging\n\
-\t-l\tsyslog level\n\
-\t-t\ttemplate timeout [seconds] (default value: %d)\n\
-\t-e\texport timeout [seconds] (default value: %d)\n\
-\t-F\tdaemonize\n\
-", COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
+    printf("Usage: natnf -c <collector-address> [-phsltef]\n" \
+           "\t-c\tcollector IPv4/IPv6 address or DNS name\n " \
+           "\t-p\tcollector port (default value: %s)\n" \
+           "\t-h\thelp\n" \
+           "\t-s\tenable syslog logging\n" \
+           "\t-l\tsyslog level\n" \
+           "\t-t\ttemplate timeout [seconds] (default value: %d)\n" \
+           "\t-e\texport timeout [seconds] (default value: %d)\n" \
+           "\t-f\tdaemonize\n", COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
 }
 
 void load_config(int argc, char **argv)
@@ -82,11 +79,13 @@ void load_config(int argc, char **argv)
     extern char *optarg;
 
 	if (argc < 2) {
-		fprintf(stderr, "Please specify collector IP address and port. See -h or manpage for help\n");
+		fprintf(stderr, "Please specify at least collector IP address. See -h or manpage for help\n");
         exit(0);
 	}
+	
+	exs.ip_str = NULL;
 
-    while ((opt = getopt(argc, argv, "hc:p:sl:t:e:F")) != -1)
+    while ((opt = getopt(argc, argv, "hc:p:sl:t:e:fv")) != -1)
     {
         switch (opt)
         {
@@ -95,53 +94,52 @@ void load_config(int argc, char **argv)
             exit(0);
             break;
         case 'c':       //set collector IP address, IP address check is performed in getaddrinfo() function
-            if (!optarg) {break;}
-        	exs.ip_str = (char *)malloc(sizeof(char) * strlen(optarg));
-        	strncpy(exs.ip_str, optarg, strlen(optarg));
+        	exs.ip_str = optarg;
+        	//exs.ip_str = (char *)malloc(sizeof(char) * strlen(optarg));
+        	//strncpy(exs.ip_str, optarg, strlen(optarg));
             break;
         case 'p':       //set collector port
-            if (!optarg) {break;}
             checkAndSetCollectorPort(optarg);
             break;
         case 's':       //enable syslog logging
             exs.syslog_enable = 1;
             break;
         case 'l':       //set syslog level
-            if (!optarg) {break;}
             i = atoi(optarg);
             checkAndSetSyslogLevel(i);
             break;
         case 't':       //set template timeout
-            if (!optarg) {break;}
             i = atoi(optarg);
             checkAndSetTemplateTimeout(i);
             break;
         case 'e':       //set export timeout
-            if (!optarg) {break;}
             i = atoi(optarg);
             checkAndSetExportTimeout(i);
             break;
-        case 'F':       //daemonize
+        case 'f':       //daemonize
             exs.daemonize = 1;
             break;
+        case 'v':       //verbose mode
+            exs.verbose = 1;
+            break;
         default:        //any other param is wrong
-            error("Wrong parameter - use: [ -h ]\
- [ -c <collector-ip-address> ] [ -p <collector-port> ] [ -s ]\
- [ -l <syslog-level> ] [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]");
+            error("Wrong parameter. See -h for help");
         }
     }
 
-    char tmp[80];
-    
-    sprintf(tmp,"Collector:\t%s:%s",exs.ip_str,exs.port);
-    DEBUG(tmp);
-    if ( exs.syslog_enable )
-    {
-        sprintf(tmp,"Syslog level:\t%d",exs.syslog_level);
-        DEBUG(tmp);
-    }
-    sprintf(tmp,"Template timeout:\t%d",exs.template_timeout);
-    DEBUG(tmp);
-    sprintf(tmp,"Export timeout:\t%d",exs.export_timeout);
-    DEBUG(tmp);
+	if (exs.ip_str == NULL) {
+		fprintf(stderr, "Please specify at least collector IP address. See -h or manpage for help\n");
+        exit(0);
+	}
+
+    if (exs.verbose) { 
+    	fprintf(stderr, "Collector: %s:%s\n" \
+                        "Syslog is %s, syslog level: %d\n"
+                        "Template timeout:%d\n"
+                        "Export timeout:%d\n\n", 
+                        exs.ip_str,exs.port, 
+						exs.syslog_enable ? "ENABLED" : "DISABLED", exs.syslog_level, 
+                        exs.template_timeout, 
+                        exs.export_timeout);
+	}
 }
