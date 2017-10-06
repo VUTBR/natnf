@@ -46,7 +46,9 @@ static int event_cb(enum nf_conntrack_msg_type type,
 
     /* We're only interested in source NAT. */
     is_nat = nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
-             nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT);
+             nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) ||
+             nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
+             nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT);
 
     if (!is_nat)
     {
@@ -107,7 +109,13 @@ void parse_nat_header(struct nat_record *natr,
         natr->post_nat_dst_port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
     }
 
-    if (type == NFCT_T_NEW)
+	/* Correct ports byte order */
+    natr->pre_nat_src_port = ntohs(natr->pre_nat_src_port);
+    natr->pre_nat_dst_port = ntohs(natr->pre_nat_dst_port);
+    natr->post_nat_src_port = ntohs(natr->post_nat_src_port);
+    natr->post_nat_dst_port = ntohs(natr->post_nat_dst_port);
+ 
+	if (type == NFCT_T_NEW)
         natr->nat_event = NAT_CREATE;
     else if (type == NFCT_T_DESTROY)
         natr->nat_event = NAT_DELETE;
@@ -164,7 +172,15 @@ void print_nat_header(struct nat_record *natr)
     {
         bzero(&buf, sizeof(buf));
 
-        cx = snprintf(buf, MAX_STRING - 1,"[%s] %s", type[natr->nat_event], inet_ntoa(natr->pre_nat_src_ip));
+        /* Time stamp - start */
+        char s[1000];
+		time_t t = time(NULL);
+		struct tm * p = localtime(&t);
+		strftime(s, 1000, "%F %H:%M:%S", p);
+		cx = snprintf(buf, MAX_STRING - 1,"%s ", s);
+		/* Time stamp - end */
+
+        cx += snprintf(buf+cx, MAX_STRING - 1 - cx,"[%s] %s", type[natr->nat_event], inet_ntoa(natr->pre_nat_src_ip));
         
         if (is_full)
             cx += snprintf(buf+cx, MAX_STRING - 1 - cx,":%d", natr->pre_nat_src_port);
