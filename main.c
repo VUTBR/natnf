@@ -44,7 +44,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		return NFCT_CB_CONTINUE;
 	}
 
-    /* We're only interested in source NAT. */
+    /* We're interested in source and destination NAT. */
     is_nat = nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
              nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) ||
              nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
@@ -67,6 +67,18 @@ static int event_cb(enum nf_conntrack_msg_type type,
 
 	return NFCT_CB_CONTINUE;
 }
+
+/** Statistic variables
+ */
+unsigned long long int sent_packets = 0;
+uint32_t last_sent_record = 0;
+unsigned long long int sent_records = 0;
+//unsigned long long int  = 0;
+
+FILE *fd_l, *fd_p;
+char *log_dir = "/var/log/";
+char *log_file = "natnf";
+char *log_params = "natnf-params";
 
 void parse_nat_header(struct nat_record *natr,
                       enum nf_conntrack_msg_type type,
@@ -320,6 +332,10 @@ void thread_exporter(void *arg)
 				export_send_records();
 
 				exported_time = get_timestamp_s();
+				
+				sent_records=+i;
+				++sent_packets;
+				last_sent_record = exported_time;
 
 				first_run = 1;
 				i = 0;
@@ -342,6 +358,47 @@ void thread_template(void *arg)
         export_send_template();
         DEBUG("Template sent.");
         sleep(exs.template_timeout);
+    }
+}
+
+void thread_responder(void *arg)
+{
+	//Open file to log statistics
+	char file_log[80];
+	strcpy(file_log, log_dir);
+	strcat(file_log, log_file);
+	fd_l = fopen(file_log, "a");
+	
+	char file_params[80];
+	strcpy(file_params, log_dir);
+	strcat(file_params, log_params);
+	fd_p = fopen(file_params, "a");
+	
+	sleep(10);
+	
+	if ( fd_p < 0 )
+	{
+		printf("Log file for params cannot be opened");
+	}
+	else
+	{
+		fprintf(fd_p, "%lld:%s,%s,%d,%d,%d,%d\n", get_timestamp_s(), exs.ip_str, exs.port, exs.template_timeout, exs.export_timeout, exs.syslog_enable, exs.syslog_level);
+		fclose(fd_p);
+	}
+
+	if ( fd_l < 0 )
+	{
+		printf("Log file for statistics cannot be opened");
+		exit(1);
+	}	
+	
+    while (1)
+    {
+        DEBUG("Saving statistics");
+		printf("Stats: %lld: %lld, %d, %lld\n", get_timestamp_s(), sent_packets, last_sent_record, sent_records);	//so far for view info
+		fprintf(fd_l, "%lld:%lld,%d,%lld\n", get_timestamp_s(), sent_packets, last_sent_record, sent_records);
+		fflush(fd_l);
+		sleep(10);
     }
 }
 
@@ -377,8 +434,15 @@ int main(int argc, char **argv)
     {
         error("Thread not created");
     }
+	
+	/* User responder thread */
+    ret = pthread_create(&pt[3], &attr, thread_responder, NULL);
+    if (ret != 0)
+    {
+        error("Thread not created");
+    }
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i <= 3; i++)
     {
         ret = pthread_join(pt[i], &statp); 
         if (ret == -1) {
@@ -387,6 +451,8 @@ int main(int argc, char **argv)
     }
 
     export_finish();
+	
+	fclose(fd_l);
 
 	ret == -1 ? exit(EXIT_FAILURE) : exit(EXIT_SUCCESS);
 }
