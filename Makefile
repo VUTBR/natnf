@@ -23,3 +23,7 @@ install:
 clean:
 	$(RM) $(PROG_NAME)
 	$(RM) $(OBJS)
+
+tar:
+	tar cvzf natnf-1.0.tar.gz --transform 's,^,natnf-1.0/,' *.c *.h Makefile
+
