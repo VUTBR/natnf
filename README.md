@@ -10,7 +10,7 @@ VUT FIT Brno
 
 ## Usage
 ```
-natnf [ -h ] [ -c <collector-ip-address> ]  [ -p <collector-port> ] [ -s ] [ -l <syslog-level> ] [ -t <template-timeout> ] [ -e <export-timeout> ] [ -F ]
+natnf [ -h ] [ -c <collector-ip-address> ]  [ -p <collector-port> ] [ -s ] [ -l <syslog-level> ] [ -t <template-timeout> ] [ -e <export-timeout> ] [ -f ]
 	-h help
 	-c collector IP address
 	-p collector port
@@ -18,6 +18,6 @@ natnf [ -h ] [ -c <collector-ip-address> ]  [ -p <collector-port> ] [ -s ] [ -l 
 	-l syslog level
 	-t template timeout [seconds]
 	-e export timeout [seconds]
-	-F daemonize
+	-f daemonize
 ```
 
