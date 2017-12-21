@@ -7,7 +7,7 @@ CFLAGS += -Wall -std=c99 -w -Wextra -pedantic
 NOERR := 2>/dev/null
 
 DESTDIR ?=
-PREFIX ?= /usr/local/net
+PREFIX ?= /usr
 
 .PHONY: all clean
 

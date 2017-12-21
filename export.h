@@ -12,6 +12,7 @@
 
 #define _POSIX_C_SOURCE 200112L
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -29,6 +30,8 @@
 #define RECORDS_MAX 65536
 #define TIMEOUT_TEMPLATE_DEFAULT 60
 #define TIMEOUT_EXPORT_DEFAULT 10
+
+#define LOG_PATH_DEFAULT "/var/log/natnf"
 
 #define N_FIELDS_FULL (sizeof(template_full_fields) / sizeof(int[2]))
 #define N_FIELDS_NO_PORTS (sizeof(template_no_ports_fields) / sizeof(int[2]))
@@ -115,6 +118,12 @@ struct export_settings
     /* Outgoing connection identification: */
     int socket_out;
     struct addrinfo *dest;
+};
+
+struct log_settings
+{
+	FILE *fd_l;
+	char *log_path;
 };
 
 extern int template_full_fields[][2];

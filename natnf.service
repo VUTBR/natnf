@@ -1,10 +1,10 @@
 [Unit]
-Description=Source and dest nat exporter
+Description=Source and destination nat exporter
  
 [Service]
 Type=forking
-EnvironmentFile=/etc/.natnfconf
-ExecStart=/usr/local/net/natnf $NATNFARG
+EnvironmentFile=/etc/natnf.conf
+ExecStart=/usr/bin/natnf -f $NATNFARG
 Restart=always
 RestartSec=30
  

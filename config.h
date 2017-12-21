@@ -19,6 +19,7 @@
 #define MAXBUF 1024
 
 extern struct export_settings exs;
+extern struct log_settings logs;
 
 int isValidIpAddress(char *);
 void checkAndSetCollectorIpAddress(char *);

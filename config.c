@@ -69,7 +69,8 @@ void printHelpMessage()
            "\t-l\tsyslog level\n" \
            "\t-t\ttemplate timeout [seconds] (default value: %d)\n" \
            "\t-e\texport timeout [seconds] (default value: %d)\n" \
-           "\t-f\tdaemonize\n", COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT);
+           "\t-d\tlog path (default value: %s)\n" \
+           "\t-f\tdaemonize\n", COLLECTOR_PORT, TIMEOUT_TEMPLATE_DEFAULT, TIMEOUT_EXPORT_DEFAULT, LOG_PATH_DEFAULT);
 }
 
 void load_config(int argc, char **argv)
@@ -77,6 +78,9 @@ void load_config(int argc, char **argv)
     int opt, i;
 
     extern char *optarg;
+	
+	char *pch;
+	char command[512];
 
 	if (argc < 2) {
 		fprintf(stderr, "Please specify at least collector IP address. See -h or manpage for help\n");
@@ -85,7 +89,7 @@ void load_config(int argc, char **argv)
 	
 	exs.ip_str = NULL;
 
-    while ((opt = getopt(argc, argv, "hc:p:sl:t:e:fv")) != -1)
+    while ((opt = getopt(argc, argv, "hc:p:sl:t:e:d:fv")) != -1)
     {
         switch (opt)
         {
@@ -116,6 +120,13 @@ void load_config(int argc, char **argv)
             i = atoi(optarg);
             checkAndSetExportTimeout(i);
             break;
+        case 'd':       //path to logfile
+            pch = strrchr(optarg,'/');
+            strcpy( command, "mkdir -p " );
+            strncat( command, optarg, pch-optarg );
+            system(command);
+            logs.log_path = optarg;
+            break;
         case 'f':       //daemonize
             exs.daemonize = 1;
             break;
@@ -127,19 +138,21 @@ void load_config(int argc, char **argv)
         }
     }
 
-	if (exs.ip_str == NULL) {
-		fprintf(stderr, "Please specify at least collector IP address. See -h or manpage for help\n");
+    if (exs.ip_str == NULL) {
+        fprintf(stderr, "Please specify at least collector IP address. See -h or manpage for help\n");
         exit(0);
-	}
+    }
 
     if (exs.verbose) { 
     	fprintf(stderr, "Collector: %s:%s\n" \
                         "Syslog is %s, syslog level: %d\n"
-                        "Template timeout:%d\n"
-                        "Export timeout:%d\n\n", 
+                        "Template timeout: %d\n"
+                        "Export timeout: %d\n"
+                        "Logpath: %s\n\n", 
                         exs.ip_str,exs.port, 
-						exs.syslog_enable ? "ENABLED" : "DISABLED", exs.syslog_level, 
+                        exs.syslog_enable ? "ENABLED" : "DISABLED", exs.syslog_level, 
                         exs.template_timeout, 
-                        exs.export_timeout);
+                        exs.export_timeout,
+                        logs.log_path);
 	}
 }

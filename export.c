@@ -123,6 +123,7 @@ struct send_buffer
 };
 
 struct export_settings exs;
+struct log_settings logs;
 
 struct nat_record *buf_records[RECORDS_MAX] = { NULL };
 int buf_begin = 0;
@@ -163,7 +164,9 @@ void export_init_settings(int argc, char **argv)
     exs.syslog_enable = 0;
     exs.syslog_level = 4;
     exs.daemonize = 0;
-
+	
+	logs.log_path = LOG_PATH_DEFAULT;
+	
     load_config(argc, argv);
 
     if (exs.syslog_enable)
