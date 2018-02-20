@@ -99,8 +99,6 @@ void load_config(int argc, char **argv)
             break;
         case 'c':       //set collector IP address, IP address check is performed in getaddrinfo() function
         	exs.ip_str = optarg;
-        	//exs.ip_str = (char *)malloc(sizeof(char) * strlen(optarg));
-        	//strncpy(exs.ip_str, optarg, strlen(optarg));
             break;
         case 'p':       //set collector port
             checkAndSetCollectorPort(optarg);

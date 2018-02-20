@@ -25,7 +25,7 @@
 #include <semaphore.h>
 
 #define COLLECTOR_IP_STR "127.0.0.1"
-#define COLLECTOR_PORT "9996"
+#define COLLECTOR_PORT "4739"
 
 #define RECORDS_MAX 65536
 #define TIMEOUT_TEMPLATE_DEFAULT 60
