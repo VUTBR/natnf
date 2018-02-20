@@ -15,7 +15,7 @@
 
 extern struct export_settings exs;
 
-#define DEBUG(msg) \
+//#define DEBUG(msg) \
     if (exs.verbose) fprintf(stderr, "[%s] %s\n", __func__, msg);
 
 uint32_t get_uptime_ms(void);

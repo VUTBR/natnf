@@ -5,7 +5,7 @@ Jakub Mackovič, Jakub Pastuszek
 VUT FIT Brno
 
 ### Debug
-- File **utils.c** constains variable to enable debug msgs named *is_debug*.
+- File **utils.h** constains define to enable debug msgs named *DEBUG*.
 - File **export.c** contains initialize call for syslog *msg_init()* which with true parameter print out syslog msgs.
 
 ## Usage
