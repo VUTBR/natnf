@@ -365,7 +365,7 @@ void thread_responder(void *arg)
 	if ( logs.fd_l < 0 )
 	{
 		printf("Log file for statistics cannot be opened");
-		exit(1);
+		pthread_exit((void *)(1));
 	}	
 
     while (1)
